@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curriculum Operations & Production Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <!-- Supabase CDN Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --bg-surface: #0f1624;
+      --bg-surface-elevated: #162033;
+      --border: #1e2c45;
+      --border-focus: #3b82f6;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --c-l1: #10b981;
+      --c-l2: #0ea5e9;
+      --c-l3: #8b5cf6;
+      --c-l4: #f59e0b;
+      --c-l5: #f43f5e;
+
+      --st-none-bg: #1e293b;
+      --st-none-text: #94a3b8;
+      --st-none-border: #334155;
+
+      --st-draft-bg: rgba(245, 158, 11, 0.15);
+      --st-draft-text: #fbbf24;
+      --st-draft-border: rgba(245, 158, 11, 0.4);
+
+      --st-review-bg: rgba(139, 92, 246, 0.18);
+      --st-review-text: #c084fc;
+      --st-review-border: rgba(139, 92, 246, 0.45);
+
+      --st-ready-bg: rgba(16, 185, 129, 0.18);
+      --st-ready-text: #34d399;
+      --st-ready-border: rgba(16, 185, 129, 0.45);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 100vh;
+      padding-bottom: 90px;
+    }
+
+    .top-nav {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .brand-title {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .cloud-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .cloud-pill.syncing {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 6px #10b981;
+    }
+    .syncing .pulse-dot {
+      background: #fbbf24;
+      box-shadow: 0 0 6px #fbbf24;
+    }
+
+    .control-cluster {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .track-toggle {
+      display: inline-flex;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 3px;
+    }
+    .track-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .track-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .track-btn.active.festive {
+      background: #ec4899;
+      color: #ffffff;
+    }
+
+    select, input[type="text"], input[type="date"] {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13.5px;
+      font-family: inherit;
+      outline: none;
+      transition: border 0.15s;
+    }
+    select:focus, input:focus { border-color: var(--border-focus); }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 28px;
+    }
+
+    .level-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 12px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text-main); }
+    .tab-btn.active-l1 { color: var(--c-l1); border-color: var(--c-l1); }
+    .tab-btn.active-l2 { color: var(--c-l2); border-color: var(--c-l2); }
+    .tab-btn.active-l3 { color: var(--c-l3); border-color: var(--c-l3); }
+    .tab-btn.active-l4 { color: var(--c-l4); border-color: var(--c-l4); }
+    .tab-btn.active-l5 { color: var(--c-l5); border-color: var(--c-l5); }
+    .tab-btn.active-matrix { color: #38bdf8; border-color: #38bdf8; }
+
+    .level-banner {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 22px;
+      margin-bottom: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .level-banner-title {
+      font-size: 18px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .teacher-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .teacher-input-wrap label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .btn-signoff-all {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-signoff-all:hover {
+      background: #10b981;
+      color: #090d16;
+    }
+
+    .tracker-table-wrap {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow-x: auto;
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      min-width: 950px;
+    }
+    th {
+      background: var(--bg-surface-elevated);
+      color: var(--text-dim);
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    .deliverable-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .deliverable-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .chips-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .topic-chip {
+      background: var(--st-none-bg);
+      color: var(--st-none-text);
+      border: 1px solid var(--st-none-border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: center;
+      min-width: 54px;
+      transition: background 0.1s, border-color 0.1s;
+      user-select: none;
+    }
+    .topic-chip .chip-name {
+      font-size: 12px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      display: block;
+    }
+    .topic-chip .chip-state {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .topic-chip.state-none { background: var(--st-none-bg); color: var(--st-none-text); border-color: var(--st-none-border); }
+    .topic-chip.state-draft { background: var(--st-draft-bg); color: var(--st-draft-text); border-color: var(--st-draft-border); }
+    .topic-chip.state-review { background: var(--st-review-bg); color: var(--st-review-text); border-color: var(--st-review-border); }
+    .topic-chip.state-ready { background: var(--st-ready-bg); color: var(--st-ready-text); border-color: var(--st-ready-border); }
+
+    .btn-quick-signoff {
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      cursor: pointer;
+      margin-left: 8px;
+      transition: all 0.15s;
+    }
+    .btn-quick-signoff:hover {
+      background: var(--st-ready-bg);
+      color: var(--st-ready-text);
+      border-color: var(--st-ready-border);
+    }
+
+    .deadline-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .badge-countdown {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      width: fit-content;
+    }
+    .countdown-green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .countdown-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .countdown-red { background: rgba(244, 63, 94, 0.18); color: #fb7185; }
+
+    /* Multi-Link Styling */
+    .links-cell-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .links-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .btn-link-pill {
+      background: #1e3a8a;
+      color: #93c5fd;
+      border: 1px solid #2563eb;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .btn-link-pill:hover {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .btn-open-linkmodal {
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      width: fit-content;
+      transition: all 0.15s;
+    }
+    .btn-open-linkmodal:hover {
+      border-color: #38bdf8;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .timestamp-text {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 4px;
+    }
+
+    /* Festive Theme Cards */
+    .festive-theme-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid #ec4899;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .festive-theme-header {
+      padding: 16px 22px;
+      background: rgba(236, 72, 153, 0.06);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .theme-title-input {
+      font-size: 17px;
+      font-weight: 800;
+      color: #f472b6;
+      background: transparent;
+      border: 1px solid transparent;
+      padding: 4px 8px;
+      border-radius: 6px;
+      outline: none;
+      width: 290px;
+      transition: border 0.15s;
+    }
+    .theme-title-input:focus {
+      background: var(--bg-surface-elevated);
+      border-color: #ec4899;
+    }
+    .btn-add-theme {
+      background: rgba(236, 72, 153, 0.12);
+      color: #f472b6;
+      border: 1.5px dashed rgba(236, 72, 153, 0.45);
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+      transition: all 0.15s;
+    }
+    .btn-add-theme:hover {
+      background: rgba(236, 72, 153, 0.22);
+      border-color: #ec4899;
+      color: #fff;
+    }
+
+    .reset-float-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 28px;
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      z-index: 50;
+    }
+    .reset-float-btn:hover { background: #f43f5e; color: #fff; }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      display: none;
+      place-items: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 520px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="top-nav">
+    <div class="brand-title">
+      <div class="brand-logo">CO</div>
+      <span>Curriculum Ops Tracker</span>
+      <div id="cloudStatus" class="cloud-pill">
+        <span class="pulse-dot"></span> Connecting...
+      </div>
+    </div>
+
+    <div class="control-cluster">
+      <div class="track-toggle">
+        <button id="trackCore" class="track-btn active" onclick="setTrack('core')">Core Curriculum</button>
+        <button id="trackPres" class="track-btn" onclick="setTrack('presentation')">Presentation Track</button>
+        <button id="trackFestive" class="track-btn" onclick="setTrack('festive')">Festive Camps</button>
+      </div>
+
+      <select id="termSelect" onchange="changeTerm()"></select>
+      <select id="topicBlockSelect" onchange="changeBlock()"></select>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="level-tabs" id="tabBar">
+      <button class="tab-btn active-l1" onclick="setLevel(1)">Level 1</button>
+      <button class="tab-btn" onclick="setLevel(2)">Level 2</button>
+      <button class="tab-btn" onclick="setLevel(3)">Level 3</button>
+      <button class="tab-btn" onclick="setLevel(4)">Level 4</button>
+      <button class="tab-btn" onclick="setLevel(5)">Level 5</button>
+      <button class="tab-btn" onclick="setLevel('matrix')">Ops All-Levels Matrix</button>
+    </div>
+
+    <div id="appRoot"></div>
+  </div>
+
+  <button class="reset-float-btn" onclick="openResetModal()">Reset Section State</button>
+
+  <!-- Granular Multi-Links Modal -->
+  <div id="linksModal" class="modal-overlay">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 id="linksModalTitle" style="font-size: 18px; font-weight:800; color:var(--text-main);">Manage Deliverable Links</h3>
+        <button onclick="closeLinksModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <p id="linksModalSubtitle" style="color: var(--text-muted); font-size: 13px; margin-bottom: 18px;"></p>
+
+      <div id="linksModalInputs" style="display:flex; flex-direction:column; gap:12px;">
+        <!-- Injected dynamically -->
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:22px;">
+        <button onclick="closeLinksModal()" style="background:transparent; border:1px solid var(--border); color:#fff; padding:8px 16px; border-radius:6px; cursor:pointer;">Cancel</button>
+        <button onclick="saveLinksModal()" style="background:#2563eb; border:none; color:#fff; padding:8px 18px; border-radius:6px; font-weight:700; cursor:pointer;">Save Links</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset Confirmation Modal -->
+  <div id="resetModal" class="modal-overlay">
+    <div class="modal-card" style="max-width:440px;">
+      <h3 style="font-size: 18px; margin-bottom: 8px;">Confirm Section Reset?</h3>
+      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">
+        Are you sure you want to reset this section? This action broadcasts immediately across all active screens.
+      </p>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button onclick="closeResetModal()" style="background:transparent; border:1px solid var(--border); color:#fff; padding:8px 16px; border-radius:6px; cursor:pointer;">Cancel</button>
+        <button onclick="confirmReset()" style="background:#f43f5e; border:none; color:#fff; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer;">Confirm Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. SUPABASE CLIENT & ECHO-PROOF CLIENT ID ---
+    const CLIENT_ID = 'client_' + Math.random().toString(36).substring(2, 10);
+    const SUPABASE_URL = 'https://yhvcxmwdxyyfrcsivivs.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_XRJB7gceNs8b-4y4q1ziMA_JT63hHaH';
+
+    let dbClient = null;
+    try {
+      if (window.supabase && window.supabase.createClient) {
+        dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (e) {
+      console.warn('Supabase initialization failed, falling back to local storage:', e);
+    }
+
+    // --- 2. DATA SCHEMAS & SPECIFICATIONS ---
+    const STANDARD_TERMS = {
+      fall: [
+        { label: 'Topics 1–4', start: 1, end: 4 },
+        { label: 'Topics 5–8', start: 5, end: 8 },
+        { label: 'Topics 9–12', start: 9, end: 12 }
+      ],
+      winter: [
+        { label: 'Topics 13–16', start: 13, end: 16 },
+        { label: 'Topics 17–20', start: 17, end: 20 },
+        { label: 'Topics 21–24', start: 21, end: 24 }
+      ],
+      spring: [
+        { label: 'Topics 25–28', start: 25, end: 28 },
+        { label: 'Topics 29–32', start: 29, end: 32 },
+        { label: 'Topics 33–36', start: 33, end: 36 }
+      ]
+    };
+
+    const FESTIVE_SEASONS = {
+      winter_camp: [{ label: 'Winter Camp', defaultDays: 5 }],
+      easter_camp: [{ label: 'Easter Camp', defaultDays: 5 }],
+      summer_camp: [{ label: 'Summer Camp', defaultDays: 5 }],
+      halloween: [{ label: 'Halloween Camp', defaultDays: 5 }],
+      cny_camp: [{ label: 'CNY Festive Camp', defaultDays: 5 }]
+    };
+
+    const DELIVERABLES_CORE = [
+      { id: 'material_list', name: 'Material List', desc: 'Packs, Hardware & Kits', hasDeadline: true, multiLink: false },
+      { id: 'workbook', name: 'Workbook', desc: 'Student Physical Book', hasDeadline: true, multiLink: false },
+      { id: 'powerpoints', name: 'PowerPoints', desc: 'Interactive Slides & Activities', hasDeadline: true, multiLink: true },
+      { id: 'learning_pts', name: 'Lesson Learning Points', desc: 'Pedagogical Milestones', hasDeadline: true, multiLink: false },
+      { id: 'quiz', name: 'Quiz', desc: 'Unified 1-Button Section Assessment', isSingleQuiz: true, hasDeadline: true, multiLink: false },
+      { id: 'extra_worksheet', name: 'Extra Printable Worksheet', desc: 'Extension Drills (On-demand)', hasDeadline: false, multiLink: true }
+    ];
+
+    const DELIVERABLES_PRES = [
+      { id: 'material_list', name: 'Material List', desc: 'Packs, Hardware & Demonstration Kits', hasDeadline: true, multiLink: false },
+      { id: 'workbook', name: 'Workbook', desc: 'Student Physical Book', hasDeadline: true, multiLink: false },
+      { id: 'powerpoints', name: 'PowerPoints', desc: 'Showcase Deck & Visuals', hasDeadline: true, multiLink: true },
+      { id: 'extra_worksheet', name: 'Extra Printable Worksheet', desc: 'Supplemental Handouts', hasDeadline: false, multiLink: true }
+    ];
+
+    const DELIVERABLES_FESTIVE = [
+      { id: 'material_list', name: 'Material List', desc: 'Packs, Hardware & Kits', hasDeadline: true, multiLink: false },
+      { id: 'festive_workbook', name: 'Festive Workbook', desc: 'Student Physical Book', hasDeadline: true, multiLink: false },
+      { id: 'powerpoints', name: 'PowerPoints', desc: 'Camp Slides & Visuals', hasDeadline: true, multiLink: true },
+      { id: 'demo_photo', name: 'Demo Photo Uploaded', desc: 'Hardware Builds, Crafts & Sample Photos', hasDeadline: true, multiLink: true }
+    ];
+
+    const CYCLE = ['none', 'draft', 'review', 'ready'];
+
+    let currentTrack = 'core';
+    let currentTerm = 'fall';
+    let currentBlockIdx = 0;
+    let currentLevel = 1;
+
+    let globalState = {};
+    try {
+      const cached = localStorage.getItem('curriculum_ops_state');
+      if (cached) globalState = JSON.parse(cached);
+    } catch (e) {}
+
+    function getActiveTerms() {
+      return currentTrack === 'festive' ? FESTIVE_SEASONS : STANDARD_TERMS;
+    }
+
+    function getActiveDeliverables() {
+      if (currentTrack === 'core') return DELIVERABLES_CORE;
+      if (currentTrack === 'presentation') return DELIVERABLES_PRES;
+      return DELIVERABLES_FESTIVE;
+    }
+
+    function getScopeKey() {
+      if (currentTrack === 'festive') {
+        return `festive_${currentTerm}`;
+      }
+      const b = STANDARD_TERMS[currentTerm][currentBlockIdx];
+      return `${currentTrack}_${currentTerm}_${b.start}-${b.end}`;
+    }
+
+    function ensureScope() {
+      const key = getScopeKey();
+      if (!globalState[key]) {
+        globalState[key] = { teachers: {}, deliverables: {}, themes: {} };
+      }
+      return globalState[key];
+    }
+
+    function ensureFestiveThemes(lvl) {
+      const scope = ensureScope();
+      if (!scope.themes) scope.themes = {};
+      if (!scope.themes[lvl] || scope.themes[lvl].length === 0) {
+        scope.themes[lvl] = [
+          { id: 'theme_1', name: 'Theme 1: Exploration Pack', days: 5 }
+        ];
+      }
+      return scope.themes[lvl];
+    }
+
+    // --- 3. FORMATTING HELPERS ---
+    function formatExactTime(isoStr) {
+      if (!isoStr) return 'Never modified';
+      const d = new Date(isoStr);
+      return `Updated: ${d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    function getCountdownBadge(deadlineStr) {
+      if (!deadlineStr) return '';
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      const target = new Date(deadlineStr);
+      target.setHours(0,0,0,0);
+      const diffDays = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) return `<span class="badge-countdown countdown-red">Overdue (${Math.abs(diffDays)}d)</span>`;
+      if (diffDays === 0) return `<span class="badge-countdown countdown-red">Due Today</span>`;
+      if (diffDays <= 3) return `<span class="badge-countdown countdown-amber">Due in ${diffDays}d</span>`;
+      return `<span class="badge-countdown countdown-green">On Schedule (${diffDays}d)</span>`;
+    }
+
+    // --- 4. RENDER UI ---
+    function populateDropdowns() {
+      const termSel = document.getElementById('termSelect');
+      const blockSel = document.getElementById('topicBlockSelect');
+
+      if (currentTrack === 'festive') {
+        termSel.innerHTML = `
+          <option value="winter_camp" ${currentTerm === 'winter_camp' ? 'selected' : ''}>Winter Camp</option>
+          <option value="easter_camp" ${currentTerm === 'easter_camp' ? 'selected' : ''}>Easter Camp</option>
+          <option value="summer_camp" ${currentTerm === 'summer_camp' ? 'selected' : ''}>Summer Camp</option>
+          <option value="halloween" ${currentTerm === 'halloween' ? 'selected' : ''}>Halloween Camp</option>
+          <option value="cny_camp" ${currentTerm === 'cny_camp' ? 'selected' : ''}>CNY Festive Camp</option>
+        `;
+        blockSel.innerHTML = `<option value="0">All Active Themes</option>`;
+      } else {
+        termSel.innerHTML = `
+          <option value="fall" ${currentTerm === 'fall' ? 'selected' : ''}>Fall Term</option>
+          <option value="winter" ${currentTerm === 'winter' ? 'selected' : ''}>Winter Term</option>
+          <option value="spring" ${currentTerm === 'spring' ? 'selected' : ''}>Spring Term</option>
+        `;
+        const blocks = STANDARD_TERMS[currentTerm] || [];
+        if (currentBlockIdx >= blocks.length) currentBlockIdx = 0;
+        blockSel.innerHTML = blocks.map((b, idx) => `<option value="${idx}" ${idx === currentBlockIdx ? 'selected' : ''}>${b.label}</option>`).join('');
+      }
+    }
+
+    function updateTabs() {
+      const btns = document.querySelectorAll('.tab-btn');
+      btns.forEach((btn, idx) => {
+        btn.className = 'tab-btn';
+        if (currentLevel === 'matrix' && idx === 5) {
+          btn.classList.add('active-matrix');
+        } else if (currentLevel === idx + 1) {
+          btn.classList.add(`active-l${idx + 1}`);
+        }
+      });
+    }
+
+    function render() {
+      populateDropdowns();
+      updateTabs();
+      const root = document.getElementById('appRoot');
+
+      if (currentLevel === 'matrix') {
+        renderOpsMatrix(root);
+      } else if (currentTrack === 'festive') {
+        renderFestiveLevel(root);
+      } else {
+        renderStandardLevel(root);
+      }
+    }
+
+    // --- STANDARD TRACK RENDER (Core & Presentation) ---
+    function renderStandardLevel(container) {
+      const scope = ensureScope();
+      const deliverables = getActiveDeliverables();
+      const block = STANDARD_TERMS[currentTerm][currentBlockIdx];
+      const teacher = (scope.teachers && scope.teachers[currentLevel]) || '';
+
+      let rowsHtml = '';
+      deliverables.forEach(d => {
+        const itemKey = `L${currentLevel}_${d.id}`;
+        const item = (scope.deliverables && scope.deliverables[itemKey]) || {
+          topics: {},
+          deadline: '',
+          driveUrl: '',
+          links: {},
+          updatedAt: null
+        };
+
+        let topicsMarkup = '';
+        let readyCount = 0;
+        let totalCount = d.isSingleQuiz ? 1 : 4;
+
+        if (d.isSingleQuiz) {
+          const st = item.topics['quiz_unified'] || 'none';
+          if (st === 'ready') readyCount = 1;
+          topicsMarkup = `
+            <button class="topic-chip state-${st}" onclick="cycleQuizState(${currentLevel}, '${d.id}')">
+              <span class="chip-name">${block.label}</span>
+              <span class="chip-state">${st}</span>
+            </button>
+          `;
+        } else {
+          for (let t = block.start; t <= block.end; t++) {
+            const st = item.topics[t] || 'none';
+            if (st === 'ready') readyCount++;
+            topicsMarkup += `
+              <button class="topic-chip state-${st}" onclick="cycleTopicState(${currentLevel}, '${d.id}', ${t})">
+                <span class="chip-name">T${t}</span>
+                <span class="chip-state">${st}</span>
+              </button>
+            `;
+          }
+        }
+
+        const isFullyReady = (readyCount === totalCount);
+        const quickSignoffBtn = (!isFullyReady && d.id !== 'extra_worksheet')
+          ? `<button class="btn-quick-signoff" onclick="signoffRow(${currentLevel}, '${d.id}')">✓ All</button>`
+          : '';
+
+        let linkCellContent = '';
+        if (d.multiLink) {
+          const populatedLinks = [];
+          for (let t = block.start; t <= block.end; t++) {
+            if (item.links && item.links[t]) {
+              populatedLinks.push(`<a href="${item.links[t]}" target="_blank" class="btn-link-pill">T${t} ↗</a>`);
+            }
+          }
+          const linkCount = item.links ? Object.keys(item.links).length : 0;
+
+          linkCellContent = `
+            <div class="links-cell-container">
+              <div class="links-pills-row">
+                ${populatedLinks.length > 0 ? populatedLinks.join('') : '<span style="font-size:12px; color:var(--text-dim);">No links yet</span>'}
+              </div>
+              <button class="btn-open-linkmodal" onclick="openLinksModal(${currentLevel}, '${d.id}', '${d.name}', ${block.start}, ${block.end}, 'standard')">
+                ⚙ Links (${linkCount}/4)
+              </button>
+            </div>
+          `;
+        } else {
+          linkCellContent = `
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input type="text" placeholder="Paste Drive link..." value="${item.driveUrl || ''}" onchange="setDriveUrl(${currentLevel}, '${d.id}', this.value)">
+              ${item.driveUrl ? `<a href="${item.driveUrl}" target="_blank" class="btn-link-pill">Drive ↗</a>` : ''}
+            </div>
+          `;
+        }
+
+        rowsHtml += `
+          <tr>
+            <td style="width: 250px;">
+              <div class="deliverable-title">${d.name}</div>
+              <div class="deliverable-desc">${d.desc}</div>
+              <div class="timestamp-text">${formatExactTime(item.updatedAt)}</div>
+            </td>
+            <td>
+              <div class="chips-group">
+                ${topicsMarkup}
+              </div>
+            </td>
+            <td style="width: 140px;">
+              <div style="font-weight: 700; font-size: 13.5px; display: flex; align-items: center;">
+                ${isFullyReady ? '<span style="color:#34d399">✓ READY</span>' : `<span style="color:var(--text-muted)">${readyCount}/${totalCount} Done</span>`}
+                ${quickSignoffBtn}
+              </div>
+            </td>
+            <td style="width: 190px;">
+              ${d.hasDeadline ? `
+                <div class="deadline-cell">
+                  <input type="date" value="${item.deadline || ''}" onchange="setDeadline(${currentLevel}, '${d.id}', this.value)">
+                  ${getCountdownBadge(item.deadline)}
+                </div>
+              ` : `<span style="font-size:12px; color:var(--text-dim);">No deadline / On-demand</span>`}
+            </td>
+            <td style="width: 240px;">
+              ${linkCellContent}
+            </td>
+          </tr>
+        `;
+      });
+
+      container.innerHTML = `
+        <div class="level-banner">
+          <div class="level-banner-title">
+            <span style="color: var(--c-l${currentLevel});">Level ${currentLevel}</span>
+            <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">${block.label}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div class="teacher-input-wrap">
+              <label>Lead Teacher:</label>
+              <input type="text" placeholder="Assign teacher..." value="${teacher}" onchange="setLeadTeacher(${currentLevel}, this.value)">
+            </div>
+            <button class="btn-signoff-all" onclick="signoffWholeLevel(${currentLevel})">✓ Sign Off All Ready</button>
+          </div>
+        </div>
+
+        <div class="tracker-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Deliverable</th>
+                <th>Topic Progress (Click to cycle)</th>
+                <th>Sign-Off</th>
+                <th>Deadline & Status</th>
+                <th>Resource Links</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // --- FESTIVE CAMPS MULTI-THEME RENDER ---
+    function renderFestiveLevel(container) {
+      const scope = ensureScope();
+      const themes = ensureFestiveThemes(currentLevel);
+      const deliverables = DELIVERABLES_FESTIVE;
+      const teacher = (scope.teachers && scope.teachers[currentLevel]) || '';
+
+      let themesHtml = '';
+      themes.forEach((theme) => {
+        let rowsHtml = '';
+        const themeDays = (theme.days === 2) ? 2 : 5;
+
+        deliverables.forEach(d => {
+          const itemKey = `L${currentLevel}_${theme.id}_${d.id}`;
+          const item = (scope.deliverables && scope.deliverables[itemKey]) || {
+            topics: {},
+            deadline: '',
+            driveUrl: '',
+            links: {},
+            updatedAt: null
+          };
+
+          let topicsMarkup = '';
+          let readyCount = 0;
+
+          for (let day = 1; day <= themeDays; day++) {
+            const st = item.topics[day] || 'none';
+            if (st === 'ready') readyCount++;
+            topicsMarkup += `
+              <button class="topic-chip state-${st}" onclick="cycleFestiveTopicState(${currentLevel}, '${theme.id}', '${d.id}', ${day})">
+                <span class="chip-name">D${day}</span>
+                <span class="chip-state">${st}</span>
+              </button>
+            `;
+          }
+
+          const isFullyReady = (readyCount === themeDays);
+          const quickSignoffBtn = !isFullyReady
+            ? `<button class="btn-quick-signoff" onclick="signoffFestiveRow(${currentLevel}, '${theme.id}', '${d.id}', ${themeDays})">✓ All</button>`
+            : '';
+
+          let linkCellContent = '';
+          if (d.multiLink) {
+            const populatedLinks = [];
+            for (let day = 1; day <= themeDays; day++) {
+              if (item.links && item.links[day]) {
+                populatedLinks.push(`<a href="${item.links[day]}" target="_blank" class="btn-link-pill">D${day} ↗</a>`);
+              }
+            }
+            const linkCount = item.links ? Object.keys(item.links).length : 0;
+
+            linkCellContent = `
+              <div class="links-cell-container">
+                <div class="links-pills-row">
+                  ${populatedLinks.length > 0 ? populatedLinks.join('') : '<span style="font-size:12px; color:var(--text-dim);">No links yet</span>'}
+                </div>
+                <button class="btn-open-linkmodal" onclick="openLinksModal(${currentLevel}, '${theme.id}_${d.id}', '${d.name}', 1, ${themeDays}, 'festive')">
+                  ⚙ Links (${linkCount}/${themeDays})
+                </button>
+              </div>
+            `;
+          } else {
+            linkCellContent = `
+              <div style="display:flex; align-items:center; gap:6px;">
+                <input type="text" placeholder="Paste Drive link..." value="${item.driveUrl || ''}" onchange="setFestiveDriveUrl(${currentLevel}, '${theme.id}', '${d.id}', this.value)">
+                ${item.driveUrl ? `<a href="${item.driveUrl}" target="_blank" class="btn-link-pill">Drive ↗</a>` : ''}
+              </div>
+            `;
+          }
+
+          rowsHtml += `
+            <tr>
+              <td style="width: 250px;">
+                <div class="deliverable-title">${d.name}</div>
+                <div class="deliverable-desc">${d.desc}</div>
+                <div class="timestamp-text">${formatExactTime(item.updatedAt)}</div>
+              </td>
+              <td>
+                <div class="chips-group">
+                  ${topicsMarkup}
+                </div>
+              </td>
+              <td style="width: 140px;">
+                <div style="font-weight: 700; font-size: 13.5px; display: flex; align-items: center;">
+                  ${isFullyReady ? '<span style="color:#34d399">✓ READY</span>' : `<span style="color:var(--text-muted)">${readyCount}/${themeDays} Done</span>`}
+                  ${quickSignoffBtn}
+                </div>
+              </td>
+              <td style="width: 190px;">
+                <div class="deadline-cell">
+                  <input type="date" value="${item.deadline || ''}" onchange="setFestiveDeadline(${currentLevel}, '${theme.id}', '${d.id}', this.value)">
+                  ${getCountdownBadge(item.deadline)}
+                </div>
+              </td>
+              <td style="width: 240px;">
+                ${linkCellContent}
+              </td>
+            </tr>
+          `;
+        });
+
+        themesHtml += `
+          <div class="festive-theme-card">
+            <div class="festive-theme-header">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <input type="text" class="theme-title-input" value="${theme.name}" onchange="updateThemeName(${currentLevel}, '${theme.id}', this.value)" placeholder="Enter Theme Name...">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Days:</span>
+                  <select onchange="updateThemeDays(${currentLevel}, '${theme.id}', this.value)" style="padding:4px 8px; font-size:12px;">
+                    <option value="2" ${themeDays === 2 ? 'selected' : ''}>2 Days</option>
+                    <option value="5" ${themeDays === 5 ? 'selected' : ''}>5 Days</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn-signoff-all" onclick="signoffFestiveWholeTheme(${currentLevel}, '${theme.id}', ${themeDays})">✓ Sign Off Theme Ready</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Deliverable</th>
+                  <th>Camp Days (Click to cycle)</th>
+                  <th>Sign-Off</th>
+                  <th>Deadline & Status</th>
+                  <th>Resource Links</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          </div>
+        `;
+      });
+
+      container.innerHTML = `
+        <div class="level-banner">
+          <div class="level-banner-title">
+            <span style="color: var(--c-l${currentLevel});">Level ${currentLevel}</span>
+            <span style="background:rgba(236,72,153,0.2); color:#f472b6; border:1px solid rgba(236,72,153,0.4); padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700;">Festive Camps Track</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div class="teacher-input-wrap">
+              <label>Lead Teacher:</label>
+              <input type="text" placeholder="Assign teacher..." value="${teacher}" onchange="setLeadTeacher(${currentLevel}, this.value)">
+            </div>
+          </div>
+        </div>
+
+        ${themesHtml}
+
+        <button class="btn-add-theme" onclick="addNewFestiveTheme(${currentLevel})">
+          <span>+ Add Another Camp Theme to Level ${currentLevel}</span>
+        </button>
+      `;
+    }
+
+    // --- OPS ALL-LEVELS MATRIX (No Drive Link Button) ---
+    function renderOpsMatrix(container) {
+      const scope = ensureScope();
+      const deliverables = getActiveDeliverables();
+
+      let headHtml = `<th>Deliverable Spec</th>`;
+      for (let l = 1; l <= 5; l++) {
+        const teacher = (scope.teachers && scope.teachers[l]) || 'Unassigned';
+        headHtml += `
+          <th style="color: var(--c-l${l});">
+            Level ${l}
+            <div style="font-size:10px; color:var(--text-muted); text-transform:none;">${teacher}</div>
+          </th>
+        `;
+      }
+
+      let rowsHtml = '';
+      deliverables.forEach(d => {
+        let cellsHtml = '';
+        for (let l = 1; l <= 5; l++) {
+          let item = null;
+          let readyCount = 0;
+          let totalCount = 4;
+          let summaryDots = '';
+
+          if (currentTrack === 'festive') {
+            const themes = ensureFestiveThemes(l);
+            const firstTheme = themes[0];
+            totalCount = (firstTheme.days === 2) ? 2 : 5;
+            const itemKey = `L${l}_${firstTheme.id}_${d.id}`;
+            item = (scope.deliverables && scope.deliverables[itemKey]) || { topics: {}, deadline: '', driveUrl: '', links: {}, updatedAt: null };
+
+            for (let day = 1; day <= totalCount; day++) {
+              const st = item.topics[day] || 'none';
+              if (st === 'ready') readyCount++;
+              summaryDots += `<span style="font-size:10px; font-weight:800; padding:2px 4px; border-radius:3px; margin-right:3px;" class="topic-chip state-${st}">D${day}</span>`;
+            }
+          } else {
+            const block = STANDARD_TERMS[currentTerm][currentBlockIdx];
+            totalCount = d.isSingleQuiz ? 1 : 4;
+            const itemKey = `L${l}_${d.id}`;
+            item = (scope.deliverables && scope.deliverables[itemKey]) || { topics: {}, deadline: '', driveUrl: '', links: {}, updatedAt: null };
+
+            if (d.isSingleQuiz) {
+              const st = item.topics['quiz_unified'] || 'none';
+              if (st === 'ready') readyCount = 1;
+              summaryDots = `<span class="badge-countdown ${st === 'ready' ? 'countdown-green' : (st === 'review' ? 'countdown-amber' : '')}">${st.toUpperCase()}</span>`;
+            } else {
+              for (let t = block.start; t <= block.end; t++) {
+                const st = item.topics[t] || 'none';
+                if (st === 'ready') readyCount++;
+                summaryDots += `<span style="font-size:10px; font-weight:800; padding:2px 4px; border-radius:3px; margin-right:3px;" class="topic-chip state-${st}">T${t}</span>`;
+              }
+            }
+          }
+
+          cellsHtml += `
+            <td>
+              <div style="font-weight:700; font-size:13px; margin-bottom:4px;">
+                ${readyCount === totalCount ? '<span style="color:#34d399">✓ READY</span>' : `${readyCount}/${totalCount} Done`}
+              </div>
+              <div style="display:flex; flex-wrap:wrap; gap:2px; margin-bottom:4px;">
+                ${summaryDots}
+              </div>
+              <div style="font-size:10px; color:var(--text-dim); margin-top:2px;">${formatExactTime(item.updatedAt)}</div>
+            </td>
+          `;
+        }
+
+        rowsHtml += `
+          <tr>
+            <td>
+              <div class="deliverable-title">${d.name}</div>
+              <div class="deliverable-desc">${d.desc}</div>
+            </td>
+            ${cellsHtml}
+          </tr>
+        `;
+      });
+
+      container.innerHTML = `
+        <div class="level-banner">
+          <div class="level-banner-title">
+            <span style="color: #38bdf8;">Ops All-Levels Matrix</span>
+            <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">Cross-Level High Level Readiness Overview</span>
+          </div>
+        </div>
+
+        <div class="tracker-table-wrap">
+          <table>
+            <thead><tr>${headHtml}</tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // --- 5. INTERACTION HANDLERS ---
+    function setTrack(track) {
+      currentTrack = track;
+      document.getElementById('trackCore').className = 'track-btn' + (track === 'core' ? ' active' : '');
+      document.getElementById('trackPres').className = 'track-btn' + (track === 'presentation' ? ' active' : '');
+      document.getElementById('trackFestive').className = 'track-btn' + (track === 'festive' ? ' active festive' : '');
+
+      if (track === 'festive') {
+        currentTerm = 'winter_camp';
+      } else {
+        currentTerm = 'fall';
+      }
+      currentBlockIdx = 0;
+      render();
+    }
+
+    function changeTerm() {
+      currentTerm = document.getElementById('termSelect').value;
+      currentBlockIdx = 0;
+      render();
+    }
+
+    function changeBlock() {
+      currentBlockIdx = parseInt(document.getElementById('topicBlockSelect').value, 10);
+      render();
+    }
+
+    function setLevel(lvl) {
+      currentLevel = lvl;
+      render();
+    }
+
+    function setLeadTeacher(lvl, name) {
+      const scope = ensureScope();
+      if (!scope.teachers) scope.teachers = {};
+      scope.teachers[lvl] = name;
+      persistAndSync();
+    }
+
+    function cycleTopicState(lvl, dId, topicNum) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${dId}`;
+      if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+
+      const current = scope.deliverables[key].topics[topicNum] || 'none';
+      const next = CYCLE[(CYCLE.indexOf(current) + 1) % CYCLE.length];
+      scope.deliverables[key].topics[topicNum] = next;
+      scope.deliverables[key].updatedAt = new Date().toISOString();
+
+      render();
+      persistAndSync();
+    }
+
+    function cycleQuizState(lvl, dId) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${dId}`;
+      if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+
+      const current = scope.deliverables[key].topics['quiz_unified'] || 'none';
+      const next = CYCLE[(CYCLE.indexOf(current) + 1) % CYCLE.length];
+      scope.deliverables[key].topics['quiz_unified'] = next;
+      scope.deliverables[key].updatedAt = new Date().toISOString();
+
+      render();
+      persistAndSync();
+    }
+
+    function signoffRow(lvl, dId) {
+      const scope = ensureScope();
+      const block = STANDARD_TERMS[currentTerm][currentBlockIdx];
+      const key = `L${lvl}_${dId}`;
+      if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+
+      if (dId === 'quiz') {
+        scope.deliverables[key].topics['quiz_unified'] = 'ready';
+      } else {
+        for (let t = block.start; t <= block.end; t++) {
+          scope.deliverables[key].topics[t] = 'ready';
+        }
+      }
+      scope.deliverables[key].updatedAt = new Date().toISOString();
+      render();
+      persistAndSync();
+    }
+
+    function signoffWholeLevel(lvl) {
+      const scope = ensureScope();
+      const deliverables = getActiveDeliverables();
+      const block = STANDARD_TERMS[currentTerm][currentBlockIdx];
+
+      deliverables.forEach(d => {
+        if (d.id === 'extra_worksheet') return;
+        const key = `L${lvl}_${d.id}`;
+        if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+
+        if (d.isSingleQuiz) {
+          scope.deliverables[key].topics['quiz_unified'] = 'ready';
+        } else {
+          for (let t = block.start; t <= block.end; t++) {
+            scope.deliverables[key].topics[t] = 'ready';
+          }
+        }
+        scope.deliverables[key].updatedAt = new Date().toISOString();
+      });
+
+      render();
+      persistAndSync();
+    }
+
+    function setDeadline(lvl, dId, val) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${dId}`;
+      if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+      scope.deliverables[key].deadline = val;
+      scope.deliverables[key].updatedAt = new Date().toISOString();
+      render();
+      persistAndSync();
+    }
+
+    function setDriveUrl(lvl, dId, val) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${dId}`;
+      if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+      scope.deliverables[key].driveUrl = val;
+      scope.deliverables[key].updatedAt = new Date().toISOString();
+      render();
+      persistAndSync();
+    }
+
+    function updateThemeName(lvl, themeId, val) {
+      const themes = ensureFestiveThemes(lvl);
+      const th = themes.find(t => t.id === themeId);
+      if (th) th.name = val;
+      persistAndSync();
+    }
+
+    function updateThemeDays(lvl, themeId, daysVal) {
+      const themes = ensureFestiveThemes(lvl);
+      const th = themes.find(t => t.id === themeId);
+      if (th) th.days = parseInt(daysVal, 10);
+      render();
+      persistAndSync();
+    }
+
+    function addNewFestiveTheme(lvl) {
+      const themes = ensureFestiveThemes(lvl);
+      const newIndex = themes.length + 1;
+      themes.push({
+        id: `theme_${Date.now()}`,
+        name: `Theme ${newIndex}: New Camp Theme`,
+        days: 5
+      });
+      render();
+      persistAndSync();
+    }
+
+    function cycleFestiveTopicState(lvl, themeId, dId, day) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${themeId}_${dId}`;
+      if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+
+      const current = scope.deliverables[key].topics[day] || 'none';
+      const next = CYCLE[(CYCLE.indexOf(current) + 1) % CYCLE.length];
+      scope.deliverables[key].topics[day] = next;
+      scope.deliverables[key].updatedAt = new Date().toISOString();
+
+      render();
+      persistAndSync();
+    }
+
+    function signoffFestiveRow(lvl, themeId, dId, daysCount) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${themeId}_${dId}`;
+      if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+
+      for (let day = 1; day <= daysCount; day++) {
+        scope.deliverables[key].topics[day] = 'ready';
+      }
+      scope.deliverables[key].updatedAt = new Date().toISOString();
+      render();
+      persistAndSync();
+    }
+
+    function signoffFestiveWholeTheme(lvl, themeId, daysCount) {
+      const scope = ensureScope();
+      DELIVERABLES_FESTIVE.forEach(d => {
+        const key = `L${lvl}_${themeId}_${d.id}`;
+        if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+
+        for (let day = 1; day <= daysCount; day++) {
+          scope.deliverables[key].topics[day] = 'ready';
+        }
+        scope.deliverables[key].updatedAt = new Date().toISOString();
+      });
+      render();
+      persistAndSync();
+    }
+
+    function setFestiveDeadline(lvl, themeId, dId, val) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${themeId}_${dId}`;
+      if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+      scope.deliverables[key].deadline = val;
+      scope.deliverables[key].updatedAt = new Date().toISOString();
+      render();
+      persistAndSync();
+    }
+
+    function setFestiveDriveUrl(lvl, themeId, dId, val) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${themeId}_${dId}`;
+      if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+      scope.deliverables[key].driveUrl = val;
+      scope.deliverables[key].updatedAt = new Date().toISOString();
+      render();
+      persistAndSync();
+    }
+
+    // --- 6. MULTI-LINK MODAL LOGIC ---
+    let activeModalTarget = null;
+
+    function openLinksModal(lvl, itemKeySuffix, title, start, end, mode) {
+      activeModalTarget = { lvl, itemKeySuffix, start, end, mode };
+      const scope = ensureScope();
+      const key = `L${lvl}_${itemKeySuffix}`;
+      const item = (scope.deliverables && scope.deliverables[key]) || { links: {} };
+
+      document.getElementById('linksModalTitle').innerText = `${title} Links`;
+      document.getElementById('linksModalSubtitle').innerText = `Paste individual URLs for each topic or camp day.`;
+
+      let inputsHtml = '';
+      for (let i = start; i <= end; i++) {
+        const label = mode === 'festive' ? `Day ${i} Link` : `Topic ${i} Link`;
+        const val = (item.links && item.links[i]) || '';
+        inputsHtml += `
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:12px; font-weight:700; color:var(--text-muted);">${label}</label>
+            <input type="text" id="modalLink_${i}" placeholder="https://..." value="${val}">
+          </div>
+        `;
+      }
+
+      document.getElementById('linksModalInputs').innerHTML = inputsHtml;
+      document.getElementById('linksModal').style.display = 'grid';
+    }
+
+    function closeLinksModal() {
+      document.getElementById('linksModal').style.display = 'none';
+      activeModalTarget = null;
+    }
+
+    function saveLinksModal() {
+      if (!activeModalTarget) return;
+      const { lvl, itemKeySuffix, start, end } = activeModalTarget;
+      const scope = ensureScope();
+      const key = `L${lvl}_${itemKeySuffix}`;
+      if (!scope.deliverables[key]) scope.deliverables[key] = { topics: {}, deadline: '', driveUrl: '', links: {} };
+
+      if (!scope.deliverables[key].links) scope.deliverables[key].links = {};
+      for (let i = start; i <= end; i++) {
+        const inputElem = document.getElementById(`modalLink_${i}`);
+        if (inputElem) {
+          const val = inputElem.value.trim();
+          if (val) {
+            scope.deliverables[key].links[i] = val;
+          } else {
+            delete scope.deliverables[key].links[i];
+          }
+        }
+      }
+      scope.deliverables[key].updatedAt = new Date().toISOString();
+
+      closeLinksModal();
+      render();
+      persistAndSync();
+    }
+
+    // --- 7. RESET MODAL ---
+    function openResetModal() { document.getElementById('resetModal').style.display = 'grid'; }
+    function closeResetModal() { document.getElementById('resetModal').style.display = 'none'; }
+    function confirmReset() {
+      const key = getScopeKey();
+      delete globalState[key];
+      closeResetModal();
+      render();
+      persistAndSync();
+    }
+
+    // --- 8. ECHO-PROOF PERSISTENCE & REAL-TIME SYNC ---
+    let saveTimeout = null;
+    function persistAndSync() {
+      try {
+        localStorage.setItem('curriculum_ops_state', JSON.stringify(globalState));
+      } catch (e) {}
+
+      if (!dbClient) return;
+
+      const pill = document.getElementById('cloudStatus');
+      pill.classList.add('syncing');
+      pill.innerHTML = '<span class="pulse-dot"></span> Syncing to Supabase...';
+
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(async () => {
+        try {
+          const payload = {
+            ...globalState,
+            _lastSender: CLIENT_ID,
+            _sentAt: Date.now()
+          };
+
+          const { error } = await dbClient
+            .from('curriculum_tracker')
+            .upsert({ id: 'global_v1', data: payload, updated_at: new Date().toISOString() });
+
+          if (!error) {
+            pill.classList.remove('syncing');
+            pill.innerHTML = '<span class="pulse-dot"></span> Live Sync Active';
+          }
+        } catch (err) {
+          console.error('Supabase write error:', err);
+        }
+      }, 250);
+    }
+
+    async function initSupabaseLive() {
+      const pill = document.getElementById('cloudStatus');
+      if (!dbClient) {
+        pill.innerHTML = '<span class="pulse-dot" style="background:#94a3b8; box-shadow:none;"></span> Local Offline Mode';
+        return;
+      }
+
+      try {
+        const { data, error } = await dbClient
+          .from('curriculum_tracker')
+          .select('data')
+          .eq('id', 'global_v1')
+          .maybeSingle();
+
+        if (data && data.data && Object.keys(data.data).length > 0) {
+          globalState = data.data;
+          render();
+        }
+        pill.innerHTML = '<span class="pulse-dot"></span> Live Sync Active';
+      } catch (e) {
+        console.warn('Supabase fetch failed:', e);
+        pill.innerHTML = '<span class="pulse-dot" style="background:#94a3b8; box-shadow:none;"></span> Local Offline Mode';
+      }
+
+      try {
+        dbClient
+          .channel('public:curriculum_tracker')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'curriculum_tracker' }, (payload) => {
+            if (payload.new && payload.new.data) {
+              const remoteData = payload.new.data;
+
+              if (remoteData._lastSender === CLIENT_ID) return;
+
+              const activeTag = document.activeElement ? document.activeElement.tagName : '';
+              if (activeTag === 'INPUT') return;
+
+              globalState = remoteData;
+              render();
+            }
+          })
+          .subscribe();
+      } catch (e) {
+        console.warn('Realtime channel error:', e);
+      }
+    }
+
+    render();
+    initSupabaseLive();
+  </script>
+</body>
+</html>
