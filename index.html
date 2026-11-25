@@ -1,0 +1,2397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curriculum Operations & Production Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <!-- Supabase CDN Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- PDF.js for Exact Page-by-Page PDF Parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --bg-surface: #0f1624;
+      --bg-surface-elevated: #162033;
+      --border: #1e2c45;
+      --border-focus: #3b82f6;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --c-l1: #10b981;
+      --c-l2: #0ea5e9;
+      --c-l3: #8b5cf6;
+      --c-l4: #f59e0b;
+      --c-l5: #f43f5e;
+
+      --st-none-bg: #1e293b;
+      --st-none-text: #94a3b8;
+      --st-none-border: #334155;
+
+      --st-draft-bg: rgba(245, 158, 11, 0.15);
+      --st-draft-text: #fbbf24;
+      --st-draft-border: rgba(245, 158, 11, 0.4);
+
+      --st-review-bg: rgba(139, 92, 246, 0.18);
+      --st-review-text: #c084fc;
+      --st-review-border: rgba(139, 92, 246, 0.45);
+
+      --st-ready-bg: rgba(16, 185, 129, 0.18);
+      --st-ready-text: #34d399;
+      --st-ready-border: rgba(16, 185, 129, 0.45);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 100vh;
+      padding-bottom: 90px;
+    }
+
+    .top-nav {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .brand-title {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand-logo {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .cloud-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .cloud-pill.syncing {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 6px #10b981;
+    }
+    .syncing .pulse-dot {
+      background: #fbbf24;
+      box-shadow: 0 0 6px #fbbf24;
+    }
+
+    .control-cluster {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .track-toggle {
+      display: inline-flex;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 3px;
+      flex-wrap: wrap;
+    }
+    .track-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .track-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .track-btn.active.makeup {
+      background: #8b5cf6;
+      color: #ffffff;
+    }
+    .track-btn.active.festive {
+      background: #ec4899;
+      color: #ffffff;
+    }
+
+    select, input[type="text"], input[type="date"] {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13.5px;
+      font-family: inherit;
+      outline: none;
+      transition: border 0.15s;
+    }
+    select:focus, input:focus { border-color: var(--border-focus); }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 28px;
+    }
+
+    .level-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 12px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text-main); }
+    .tab-btn.active-l1 { color: var(--c-l1); border-color: var(--c-l1); }
+    .tab-btn.active-l2 { color: var(--c-l2); border-color: var(--c-l2); }
+    .tab-btn.active-l3 { color: var(--c-l3); border-color: var(--c-l3); }
+    .tab-btn.active-l4 { color: var(--c-l4); border-color: var(--c-l4); }
+    .tab-btn.active-l5 { color: var(--c-l5); border-color: var(--c-l5); }
+    .tab-btn.active-matrix { color: #38bdf8; border-color: #38bdf8; }
+
+    .level-banner {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 22px;
+      margin-bottom: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .level-banner-title {
+      font-size: 18px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .teacher-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .teacher-input-wrap label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .btn-signoff-all {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-signoff-all:hover {
+      background: #10b981;
+      color: #090d16;
+    }
+
+    .tracker-table-wrap {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow-x: auto;
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      min-width: 1040px;
+    }
+    th {
+      background: var(--bg-surface-elevated);
+      color: var(--text-dim);
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    .deliverable-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .deliverable-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .chips-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .topic-chip {
+      background: var(--st-none-bg);
+      color: var(--st-none-text);
+      border: 1px solid var(--st-none-border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: center;
+      min-width: 54px;
+      transition: background 0.1s, border-color 0.1s;
+      user-select: none;
+    }
+    .topic-chip .chip-name {
+      font-size: 12px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      display: block;
+    }
+    .topic-chip .chip-state {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .topic-chip.state-none { background: var(--st-none-bg); color: var(--st-none-text); border-color: var(--st-none-border); }
+    .topic-chip.state-draft { background: var(--st-draft-bg); color: var(--st-draft-text); border-color: var(--st-draft-border); }
+    .topic-chip.state-review { background: var(--st-review-bg); color: var(--st-review-text); border-color: var(--st-review-border); }
+    .topic-chip.state-ready { background: var(--st-ready-bg); color: var(--st-ready-text); border-color: var(--st-ready-border); }
+
+    .btn-quick-signoff {
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      cursor: pointer;
+      margin-left: 8px;
+      transition: all 0.15s;
+    }
+    .btn-quick-signoff:hover {
+      background: var(--st-ready-bg);
+      color: var(--st-ready-text);
+      border-color: var(--st-ready-border);
+    }
+
+    .deadline-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .badge-countdown {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      width: fit-content;
+    }
+    .countdown-green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .countdown-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .countdown-red { background: rgba(244, 63, 94, 0.18); color: #fb7185; }
+
+    /* Multi-Link & Spellcheck QA Styling */
+    .links-cell-container {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .links-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .btn-link-pill {
+      background: #1e3a8a;
+      color: #93c5fd;
+      border: 1px solid #2563eb;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-link-pill:hover {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .btn-link-pill.pill-qa-ok {
+      border-color: rgba(16, 185, 129, 0.6);
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+    }
+    .btn-link-pill.pill-qa-err {
+      border-color: rgba(244, 63, 94, 0.65);
+      background: rgba(244, 63, 94, 0.18);
+      color: #fda4af;
+    }
+
+    .btn-open-linkmodal {
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      width: fit-content;
+      transition: all 0.15s;
+    }
+    .btn-open-linkmodal:hover {
+      border-color: #38bdf8;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .btn-scan-qa {
+      background: rgba(59, 130, 246, 0.16);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.45);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .btn-scan-qa:hover:not(:disabled) {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #3b82f6;
+    }
+    .btn-scan-qa:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    .qa-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .qa-badge.qa-passed {
+      background: rgba(16, 185, 129, 0.16);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+    .qa-badge.qa-typos {
+      background: rgba(244, 63, 94, 0.18);
+      color: #fb7185;
+      border-color: rgba(244, 63, 94, 0.5);
+    }
+    .qa-badge.qa-typos:hover {
+      background: rgba(244, 63, 94, 0.3);
+      color: #fff;
+    }
+    .qa-badge.qa-error {
+      background: rgba(245, 158, 11, 0.16);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.45);
+    }
+    .qa-badge.qa-unscanned {
+      background: rgba(100, 116, 139, 0.14);
+      color: var(--text-dim);
+      border-color: var(--border);
+      cursor: default;
+    }
+
+    .timestamp-text {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 4px;
+    }
+
+    /* Festive Theme Cards */
+    .festive-theme-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid #ec4899;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .festive-theme-header {
+      padding: 16px 22px;
+      background: rgba(236, 72, 153, 0.06);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .theme-title-input {
+      font-size: 17px;
+      font-weight: 800;
+      color: #f472b6;
+      background: transparent;
+      border: 1px solid transparent;
+      padding: 4px 8px;
+      border-radius: 6px;
+      outline: none;
+      width: 290px;
+      transition: border 0.15s;
+    }
+    .theme-title-input:focus {
+      background: var(--bg-surface-elevated);
+      border-color: #ec4899;
+    }
+    .btn-add-theme {
+      background: rgba(236, 72, 153, 0.12);
+      color: #f472b6;
+      border: 1.5px dashed rgba(236, 72, 153, 0.45);
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+      transition: all 0.15s;
+    }
+    .btn-add-theme:hover {
+      background: rgba(236, 72, 153, 0.22);
+      border-color: #ec4899;
+      color: #fff;
+    }
+
+    .reset-float-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 28px;
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      z-index: 50;
+    }
+    .reset-float-btn:hover { background: #f43f5e; color: #fff; }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      display: none;
+      place-items: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .modal-overlay.modal-top {
+      z-index: 130;
+    }
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 640px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .typo-item-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      border-left: 4px solid #f43f5e;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .typo-loc-badge {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #93c5fd;
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 2px 8px;
+      border-radius: 5px;
+      margin-bottom: 6px;
+    }
+    .typo-diff-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .typo-word-bad {
+      color: #fb7185;
+      font-weight: 800;
+      font-size: 15px;
+      text-decoration: line-through;
+    }
+    .typo-word-good {
+      color: #34d399;
+      font-weight: 700;
+      font-size: 13.5px;
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .typo-context {
+      color: var(--text-muted);
+      font-size: 12.5px;
+      font-style: italic;
+      word-break: break-word;
+    }
+
+    .modal-link-row {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .modal-link-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .modal-link-controls input {
+      flex: 1;
+      background: var(--bg-surface);
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="top-nav">
+    <div class="brand-title">
+      <div class="brand-logo">CO</div>
+      <span>Curriculum Ops Tracker</span>
+      <div id="cloudStatus" class="cloud-pill">
+        <span class="pulse-dot"></span> Connecting...
+      </div>
+    </div>
+
+    <div class="control-cluster">
+      <div class="track-toggle">
+        <button id="trackCore" class="track-btn active" onclick="setTrack('core')">Core Curriculum</button>
+        <button id="trackPres" class="track-btn" onclick="setTrack('presentation')">Presentation Track</button>
+        <button id="trackMakeup" class="track-btn" onclick="setTrack('makeup')">Make-Up Classes</button>
+        <button id="trackFestive" class="track-btn" onclick="setTrack('festive')">Festive Camps</button>
+      </div>
+
+      <select id="termSelect" onchange="changeTerm()"></select>
+      <select id="topicBlockSelect" onchange="changeBlock()"></select>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="level-tabs" id="tabBar">
+      <button class="tab-btn active-l1" onclick="setLevel(1)">Level 1</button>
+      <button class="tab-btn" onclick="setLevel(2)">Level 2</button>
+      <button class="tab-btn" onclick="setLevel(3)">Level 3</button>
+      <button class="tab-btn" onclick="setLevel(4)">Level 4</button>
+      <button class="tab-btn" onclick="setLevel(5)">Level 5</button>
+      <button class="tab-btn" onclick="setLevel('matrix')">Ops All-Levels Matrix</button>
+    </div>
+
+    <div id="appRoot"></div>
+  </div>
+
+  <button class="reset-float-btn" onclick="openResetModal()">Reset Section State</button>
+
+  <!-- Granular Multi-Links & Per-Link Spellcheck Modal -->
+  <div id="linksModal" class="modal-overlay">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h3 id="linksModalTitle" style="font-size: 18px; font-weight:800; color:var(--text-main);">Manage Deliverable Links</h3>
+        <button onclick="closeLinksModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <p id="linksModalSubtitle" style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;"></p>
+
+      <div id="linksModalInputs" style="display:flex; flex-direction:column; gap:10px;"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:20px;">
+        <button id="scanAllModalBtn" class="btn-scan-qa" onclick="scanAllModalLinks()">🔍 Scan All Links</button>
+        <div style="display:flex; gap:10px;">
+          <button onclick="closeLinksModal()" style="background:transparent; border:1px solid var(--border); color:#fff; padding:8px 16px; border-radius:6px; cursor:pointer;">Cancel</button>
+          <button onclick="saveLinksModal()" style="background:#2563eb; border:none; color:#fff; padding:8px 18px; border-radius:6px; font-weight:700; cursor:pointer;">Save Links</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spellcheck Typo Inspector Modal -->
+  <div id="typoModal" class="modal-overlay modal-top">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px;">
+        <div>
+          <h3 id="typoModalTitle" style="font-size: 18px; font-weight:800; color:var(--text-main);">Spellcheck Report (British English)</h3>
+          <p id="typoModalSub" style="color: var(--text-muted); font-size: 12px; margin-top:3px; font-family:'JetBrains Mono', monospace;"></p>
+        </div>
+        <button onclick="closeTypoModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">✕</button>
+      </div>
+
+      <div id="typoModalBody" style="display:flex; flex-direction:column; gap:10px; max-height:55vh; overflow-y:auto; padding-right:4px;"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:20px; padding-top:14px; border-top:1px solid var(--border);">
+        <button id="typoRescanBtn" class="btn-scan-qa" onclick="rescanActiveTypoTarget()">🔄 Re-Scan File</button>
+        <button onclick="closeTypoModal()" style="background:#2563eb; border:none; color:#fff; padding:8px 18px; border-radius:6px; font-weight:700; cursor:pointer;">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset Confirmation Modal -->
+  <div id="resetModal" class="modal-overlay modal-top">
+    <div class="modal-card" style="max-width:440px;">
+      <h3 style="font-size: 18px; margin-bottom: 8px;">Confirm Section Reset?</h3>
+      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">
+        Are you sure you want to reset this section? This action broadcasts immediately across all active screens.
+      </p>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button onclick="closeResetModal()" style="background:transparent; border:1px solid var(--border); color:#fff; padding:8px 16px; border-radius:6px; cursor:pointer;">Cancel</button>
+        <button onclick="confirmReset()" style="background:#f43f5e; border:none; color:#fff; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer;">Confirm Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. SUPABASE CLIENT & SPELLCHECK ENDPOINT ---
+    const CLIENT_ID = 'client_' + Math.random().toString(36).substring(2, 10);
+    const SUPABASE_URL = 'https://yhvcxmwdxyyfrcsivivs.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_XRJB7gceNs8b-4y4q1ziMA_JT63hHaH';
+    const SPELLCHECK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyiXZ-67HnQ_4QUQ7NXH0R2TDQYdSHFUx5qqlxEXSHQRfFb1U8VdwzLRn61h21n6l1ApQ/exec';
+
+    let dbClient = null;
+    try {
+      if (window.supabase && window.supabase.createClient) {
+        dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (e) {
+      console.warn('Supabase initialization failed, falling back to local storage:', e);
+    }
+
+    const activeScans = {};
+    let activeTypoTarget = null;
+
+    // --- 2. DATA SCHEMAS & SPECIFICATIONS ---
+    const STANDARD_TERMS = {
+      fall: [
+        { label: 'Topics 1–4', start: 1, end: 4 },
+        { label: 'Topics 5–8', start: 5, end: 8 },
+        { label: 'Topics 9–12', start: 9, end: 12 }
+      ],
+      winter: [
+        { label: 'Topics 13–16', start: 13, end: 16 },
+        { label: 'Topics 17–20', start: 17, end: 20 },
+        { label: 'Topics 21–24', start: 21, end: 24 }
+      ],
+      spring: [
+        { label: 'Topics 25–28', start: 25, end: 28 },
+        { label: 'Topics 29–32', start: 29, end: 32 },
+        { label: 'Topics 33–36', start: 33, end: 36 }
+      ]
+    };
+
+    const TERM_LABELS = {
+      fall: 'Fall Term',
+      winter: 'Winter Term',
+      spring: 'Spring Term'
+    };
+
+    const DELIVERABLES_CORE = [
+      { id: 'material_list', name: 'Material List', desc: 'Packs, Hardware & Kits', hasDeadline: true, multiLink: false, skipQa: true },
+      { id: 'workbook', name: 'Workbook', desc: 'Student Physical Book', hasDeadline: true, multiLink: false },
+      { id: 'powerpoints', name: 'PowerPoints', desc: 'Interactive Slides & Activities', hasDeadline: true, multiLink: true },
+      { id: 'learning_pts', name: 'Lesson Learning Points', desc: 'Pedagogical Milestones', hasDeadline: true, multiLink: false },
+      { id: 'quiz', name: 'Quiz', desc: 'Unified 1-Button Section Assessment', isSingleQuiz: true, hasDeadline: true, multiLink: false },
+      { id: 'extra_worksheet', name: 'Extra Printable Worksheet', desc: 'Extension Drills (On-demand)', hasDeadline: false, multiLink: true }
+    ];
+
+    const DELIVERABLES_PRES = [
+      { id: 'material_list', name: 'Material List', desc: 'Packs, Hardware & Demonstration Kits', hasDeadline: true, multiLink: false, skipQa: true },
+      { id: 'workbook', name: 'Workbook', desc: 'Student Physical Book', hasDeadline: true, multiLink: false },
+      { id: 'powerpoints', name: 'PowerPoints', desc: 'Showcase Deck & Visuals', hasDeadline: true, multiLink: true },
+      { id: 'extra_worksheet', name: 'Extra Printable Worksheet', desc: 'Supplemental Handouts', hasDeadline: false, multiLink: true }
+    ];
+
+    const DELIVERABLES_MAKEUP = [
+      {
+        id: 'material_list',
+        name: 'Material List',
+        desc: 'Supplies & materials for make-up lessons',
+        hasDeadline: true,
+        multiLink: false,
+        skipQa: true
+      },
+      {
+        id: 'workbook',
+        name: 'Make-Up Worksheets',
+        desc: 'Printable student worksheets (M1–M3)',
+        hasDeadline: true,
+        multiLink: true
+      },
+      {
+        id: 'powerpoints',
+        name: 'Curriculum PowerPoints',
+        desc: 'Science (L1–3) / Tech (L4–5) lesson slides (3 decks)',
+        descScience: 'Science make-up lesson slides (3 decks · M1–M3)',
+        descTech: 'Tech make-up lesson slides (3 decks · M1–M3)',
+        hasDeadline: true,
+        multiLink: true
+      },
+      {
+        id: 'presentation_slides',
+        name: 'Presentation PowerPoints',
+        desc: 'Presentation make-up slides (3 decks · M1–M3)',
+        hasDeadline: true,
+        multiLink: true
+      }
+    ];
+
+    const DELIVERABLES_FESTIVE = [
+      { id: 'material_list', name: 'Material List', desc: 'Packs, Hardware & Kits', hasDeadline: true, multiLink: false, skipQa: true },
+      { id: 'festive_workbook', name: 'Festive Workbook', desc: 'Student Physical Book', hasDeadline: true, multiLink: false },
+      { id: 'powerpoints', name: 'PowerPoints', desc: 'Camp Slides & Visuals', hasDeadline: true, multiLink: true },
+      { id: 'demo_photo', name: 'Demo Photo Uploaded', desc: 'Hardware Builds, Crafts & Sample Photos', hasDeadline: true, multiLink: true, skipQa: true }
+    ];
+
+    const CYCLE = ['none', 'draft', 'review', 'ready'];
+
+    let currentTrack = 'core';
+    let currentTerm = 'fall';
+    let currentBlockIdx = 0;
+    let currentLevel = 1;
+
+    let globalState = {};
+    try {
+      const cached = localStorage.getItem('curriculum_ops_state');
+      if (cached) globalState = JSON.parse(cached);
+    } catch (e) {}
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    function getDeliverableDesc(d, lvl) {
+      if (lvl === 1 || lvl === 2 || lvl === 3) {
+        if (d.descScience) return d.descScience;
+      } else if (lvl === 4 || lvl === 5) {
+        if (d.descTech) return d.descTech;
+      }
+      return d.desc;
+    }
+
+    function getActiveDeliverables() {
+      if (currentTrack === 'core') return DELIVERABLES_CORE;
+      if (currentTrack === 'presentation') return DELIVERABLES_PRES;
+      if (currentTrack === 'makeup') return DELIVERABLES_MAKEUP;
+      return DELIVERABLES_FESTIVE;
+    }
+
+    function getScopeKey() {
+      if (currentTrack === 'festive') return `festive_${currentTerm}`;
+      if (currentTrack === 'makeup') return `makeup_${currentTerm}`;
+      const b = STANDARD_TERMS[currentTerm][currentBlockIdx];
+      return `${currentTrack}_${currentTerm}_${b.start}-${b.end}`;
+    }
+
+    function ensureScope(explicitKey) {
+      const key = explicitKey || getScopeKey();
+      if (!globalState[key]) {
+        globalState[key] = { teachers: {}, deliverables: {}, themes: {} };
+      }
+      if (!globalState[key].deliverables) globalState[key].deliverables = {};
+      if (!globalState[key].teachers) globalState[key].teachers = {};
+      return globalState[key];
+    }
+
+    function ensureDeliverableItem(scope, itemKey) {
+      if (!scope.deliverables[itemKey]) {
+        scope.deliverables[itemKey] = { topics: {}, deadline: '', driveUrl: '', links: {}, updatedAt: null };
+      }
+      if (!scope.deliverables[itemKey].topics) scope.deliverables[itemKey].topics = {};
+      if (!scope.deliverables[itemKey].links) scope.deliverables[itemKey].links = {};
+      return scope.deliverables[itemKey];
+    }
+
+    function ensureFestiveThemes(lvl) {
+      const scope = ensureScope();
+      if (!scope.themes) scope.themes = {};
+      if (!scope.themes[lvl] || scope.themes[lvl].length === 0) {
+        const defaultDays = (currentTerm === 'one_day_festive') ? 1 : 5;
+        const defaultName = defaultDays === 1 ? 'Theme 1: 1-Day Festive Workshop' : 'Theme 1: Exploration Pack';
+        scope.themes[lvl] = [{ id: 'theme_1', name: defaultName, days: defaultDays }];
+      }
+      return scope.themes[lvl];
+    }
+
+    function normalizeThemeDays(days) {
+      const n = Number(days);
+      return [1, 2, 5].includes(n) ? n : 5;
+    }
+
+    // --- 3. FORMATTING & QA HELPERS ---
+    function formatExactTime(isoStr) {
+      if (!isoStr) return 'Never modified';
+      const d = new Date(isoStr);
+      return `Updated: ${d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    function getCountdownBadge(deadlineStr, isFullyReady = false) {
+      if (!deadlineStr) return '';
+      if (isFullyReady) {
+        return `<span class="badge-countdown countdown-green">✓ Completed</span>`;
+      }
+      const parts = deadlineStr.split('-');
+      if (parts.length === 3 && parseInt(parts[0], 10) < 2000) return '';
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const target = new Date(deadlineStr);
+      if (isNaN(target.getTime())) return '';
+      target.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) return `<span class="badge-countdown countdown-red">Overdue (${Math.abs(diffDays)}d)</span>`;
+      if (diffDays === 0) return `<span class="badge-countdown countdown-red">Due Today</span>`;
+      if (diffDays <= 3) return `<span class="badge-countdown countdown-amber">Due in ${diffDays}d</span>`;
+      return `<span class="badge-countdown countdown-green">On Schedule (${diffDays}d)</span>`;
+    }
+
+    function getMultiQaSummary(item, start, end) {
+      let totalLinks = 0, scanned = 0, passed = 0, typos = 0, errors = 0;
+      const qaLinks = item.qaLinks || {};
+      for (let i = start; i <= end; i++) {
+        const url = item.links && item.links[i];
+        if (!url) continue;
+        totalLinks++;
+        const qa = qaLinks[i];
+        if (qa && qa.url === url) {
+          scanned++;
+          if (qa.status === 'passed') passed++;
+          else if (qa.status === 'typos') typos += (qa.typoCount || (qa.typos ? qa.typos.length : 0));
+          else if (qa.status === 'error') errors++;
+        }
+      }
+      return { totalLinks, scanned, passed, typos, errors };
+    }
+
+    function getRowUnresolvedTypos(item, spec, start, end) {
+      if (!item || !spec || spec.skipQa) return 0;
+      if (!spec.multiLink) {
+        if (item.qaSingle && item.qaSingle.url === item.driveUrl && item.qaSingle.status === 'typos') {
+          return item.qaSingle.typoCount || 0;
+        }
+        return 0;
+      }
+      return getMultiQaSummary(item, start, end).typos;
+    }
+
+    function renderSingleQaBadge(scopeKey, itemKey, item) {
+      if (!item.driveUrl) return '';
+      const qa = item.qaSingle;
+      if (!qa || qa.url !== item.driveUrl) {
+        return `<span class="qa-badge qa-unscanned">Unscanned</span>`;
+      }
+      if (qa.status === 'passed') {
+        return `<button class="qa-badge qa-passed" onclick="openTypoModal('${scopeKey}', '${itemKey}', 'single')">✓ UK Clean</button>`;
+      }
+      if (qa.status === 'typos') {
+        return `<button class="qa-badge qa-typos" onclick="openTypoModal('${scopeKey}', '${itemKey}', 'single')">⚠ ${qa.typoCount} Typo${qa.typoCount === 1 ? '' : 's'}</button>`;
+      }
+      return `<button class="qa-badge qa-error" onclick="openTypoModal('${scopeKey}', '${itemKey}', 'single')">⚠ Scan Err</button>`;
+    }
+
+    // --- 4. RENDER UI ---
+    function populateDropdowns() {
+      const termSel = document.getElementById('termSelect');
+      const blockSel = document.getElementById('topicBlockSelect');
+
+      if (currentTrack === 'festive') {
+        termSel.innerHTML = `
+          <option value="winter_camp" ${currentTerm === 'winter_camp' ? 'selected' : ''}>Winter Camp</option>
+          <option value="easter_camp" ${currentTerm === 'easter_camp' ? 'selected' : ''}>Easter Camp</option>
+          <option value="summer_camp" ${currentTerm === 'summer_camp' ? 'selected' : ''}>Summer Camp</option>
+          <option value="halloween" ${currentTerm === 'halloween' ? 'selected' : ''}>Halloween Camp</option>
+          <option value="cny_camp" ${currentTerm === 'cny_camp' ? 'selected' : ''}>CNY Festive Camp</option>
+          <option value="one_day_festive" ${currentTerm === 'one_day_festive' ? 'selected' : ''}>1-Day Festive Camp</option>
+        `;
+        blockSel.innerHTML = `<option value="0">All Active Themes</option>`;
+      } else if (currentTrack === 'makeup') {
+        if (!STANDARD_TERMS[currentTerm]) currentTerm = 'fall';
+        termSel.innerHTML = `
+          <option value="fall" ${currentTerm === 'fall' ? 'selected' : ''}>Fall Term</option>
+          <option value="winter" ${currentTerm === 'winter' ? 'selected' : ''}>Winter Term</option>
+          <option value="spring" ${currentTerm === 'spring' ? 'selected' : ''}>Spring Term</option>
+        `;
+        blockSel.innerHTML = `<option value="0">3 Topics / Level (M1–M3)</option>`;
+      } else {
+        if (!STANDARD_TERMS[currentTerm]) currentTerm = 'fall';
+        termSel.innerHTML = `
+          <option value="fall" ${currentTerm === 'fall' ? 'selected' : ''}>Fall Term</option>
+          <option value="winter" ${currentTerm === 'winter' ? 'selected' : ''}>Winter Term</option>
+          <option value="spring" ${currentTerm === 'spring' ? 'selected' : ''}>Spring Term</option>
+        `;
+        const blocks = STANDARD_TERMS[currentTerm] || [];
+        if (currentBlockIdx >= blocks.length) currentBlockIdx = 0;
+        blockSel.innerHTML = blocks.map((b, idx) => `<option value="${idx}" ${idx === currentBlockIdx ? 'selected' : ''}>${b.label}</option>`).join('');
+      }
+    }
+
+    function updateTabs() {
+      const btns = document.querySelectorAll('.tab-btn');
+      btns.forEach((btn, idx) => {
+        btn.className = 'tab-btn';
+        if (currentLevel === 'matrix' && idx === 5) {
+          btn.classList.add('active-matrix');
+        } else if (currentLevel === idx + 1) {
+          btn.classList.add(`active-l${idx + 1}`);
+        }
+      });
+    }
+
+    function render() {
+      populateDropdowns();
+      updateTabs();
+      const root = document.getElementById('appRoot');
+
+      if (currentLevel === 'matrix') {
+        renderOpsMatrix(root);
+      } else if (currentTrack === 'festive') {
+        renderFestiveLevel(root);
+      } else {
+        renderStandardLevel(root);
+      }
+    }
+
+    // --- STANDARD + MAKE-UP TRACK RENDER ---
+    function renderStandardLevel(container) {
+      const scopeKey = getScopeKey();
+      const scope = ensureScope(scopeKey);
+      const deliverables = getActiveDeliverables();
+      const isMakeup = (currentTrack === 'makeup');
+      const block = isMakeup
+        ? { label: 'Make-Up Topics 1–3', start: 1, end: 3 }
+        : STANDARD_TERMS[currentTerm][currentBlockIdx];
+      const prefix = isMakeup ? 'M' : 'T';
+      const topicCount = block.end - block.start + 1;
+      const teacher = (scope.teachers && scope.teachers[currentLevel]) || '';
+
+      let rowsHtml = '';
+      deliverables.forEach(d => {
+        const itemKey = `L${currentLevel}_${d.id}`;
+        const item = (scope.deliverables && scope.deliverables[itemKey]) || {
+          topics: {}, deadline: '', driveUrl: '', links: {}, updatedAt: null
+        };
+
+        let topicsMarkup = '';
+        let readyCount = 0;
+        const totalCount = d.isSingleQuiz ? 1 : topicCount;
+
+        if (d.isSingleQuiz) {
+          const st = item.topics['quiz_unified'] || 'none';
+          if (st === 'ready') readyCount = 1;
+          topicsMarkup = `
+            <button class="topic-chip state-${st}" onclick="cycleQuizState(${currentLevel}, '${d.id}')">
+              <span class="chip-name">${block.label}</span>
+              <span class="chip-state">${st}</span>
+            </button>
+          `;
+        } else {
+          for (let t = block.start; t <= block.end; t++) {
+            const st = item.topics[t] || 'none';
+            if (st === 'ready') readyCount++;
+            topicsMarkup += `
+              <button class="topic-chip state-${st}" onclick="cycleTopicState(${currentLevel}, '${d.id}', ${t})">
+                <span class="chip-name">${prefix}${t}</span>
+                <span class="chip-state">${st}</span>
+              </button>
+            `;
+          }
+        }
+
+        const isFullyReady = (readyCount === totalCount);
+        const quickSignoffBtn = (!isFullyReady && d.id !== 'extra_worksheet')
+          ? `<button class="btn-quick-signoff" onclick="signoffRow(${currentLevel}, '${d.id}')">✓ All</button>`
+          : '';
+
+        let linkCellContent = '';
+        if (d.multiLink) {
+          const populatedLinks = [];
+          const qaLinks = item.qaLinks || {};
+          for (let t = block.start; t <= block.end; t++) {
+            if (item.links && item.links[t]) {
+              const qa = qaLinks[t];
+              let pillClass = 'btn-link-pill';
+              let qaIcon = '↗';
+              if (!d.skipQa && qa && qa.url === item.links[t]) {
+                if (qa.status === 'passed') { pillClass += ' pill-qa-ok'; qaIcon = '✓'; }
+                else if (qa.status === 'typos') { pillClass += ' pill-qa-err'; qaIcon = `⚠${qa.typoCount}`; }
+              }
+              populatedLinks.push(`<a href="${escapeHtml(item.links[t])}" target="_blank" rel="noopener" class="${pillClass}">${prefix}${t} ${qaIcon}</a>`);
+            }
+          }
+          const summary = getMultiQaSummary(item, block.start, block.end);
+          let qaSummaryBadge = '';
+          if (!d.skipQa) {
+            if (summary.typos > 0) {
+              qaSummaryBadge = `<button class="qa-badge qa-typos" onclick="openLinksModal(${currentLevel}, '${d.id}', ${block.start}, ${block.end}, '${isMakeup ? 'makeup' : 'standard'}')">⚠ ${summary.typos} Typos</button>`;
+            } else if (summary.totalLinks > 0 && summary.passed === summary.totalLinks) {
+              qaSummaryBadge = `<span class="qa-badge qa-passed">✓ UK Clean</span>`;
+            }
+          }
+
+          linkCellContent = `
+            <div class="links-cell-container">
+              <div class="links-pills-row">
+                ${populatedLinks.length > 0 ? populatedLinks.join('') : '<span style="font-size:12px; color:var(--text-dim);">No links yet</span>'}
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <button class="btn-open-linkmodal" onclick="openLinksModal(${currentLevel}, '${d.id}', ${block.start}, ${block.end}, '${isMakeup ? 'makeup' : 'standard'}')">
+                  ⚙ ${d.skipQa ? 'Links' : 'Links & Scan'} (${summary.totalLinks}/${topicCount})
+                </button>
+                ${qaSummaryBadge}
+              </div>
+            </div>
+          `;
+        } else {
+          const scanKey = `${scopeKey}|${itemKey}|single`;
+          const scanMsg = activeScans[scanKey];
+          linkCellContent = `
+            <div class="links-cell-container">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <input type="text" style="width:${d.skipQa ? '195px' : '155px'};" placeholder="Paste Drive link..." value="${escapeHtml(item.driveUrl || '')}"
+                  onchange="setDriveUrl(${currentLevel}, '${d.id}', this.value)"
+                  onpaste="setTimeout(() => setDriveUrl(${currentLevel}, '${d.id}', this.value), 20)">
+                ${item.driveUrl ? `<a href="${escapeHtml(item.driveUrl)}" target="_blank" rel="noopener" class="btn-link-pill" title="Open in Drive">${d.skipQa ? 'Drive ↗' : '↗'}</a>` : ''}
+                ${item.driveUrl && !d.skipQa ? `
+                  <button class="btn-scan-qa" ${scanMsg ? 'disabled' : ''} onclick="runSpellcheck('${scopeKey}', '${itemKey}', 'single')">
+                    ${scanMsg ? escapeHtml(scanMsg) : '🔍 Scan'}
+                  </button>` : ''}
+              </div>
+              ${item.driveUrl && !d.skipQa ? `<div>${renderSingleQaBadge(scopeKey, itemKey, item)}</div>` : ''}
+            </div>
+          `;
+        }
+
+        rowsHtml += `
+          <tr>
+            <td style="width: 260px;">
+              <div class="deliverable-title">${d.name}</div>
+              <div class="deliverable-desc">${getDeliverableDesc(d, currentLevel)}</div>
+              <div class="timestamp-text">${formatExactTime(item.updatedAt)}</div>
+            </td>
+            <td>
+              <div class="chips-group">
+                ${topicsMarkup}
+              </div>
+            </td>
+            <td style="width: 140px;">
+              <div style="font-weight: 700; font-size: 13.5px; display: flex; align-items: center;">
+                ${isFullyReady ? '<span style="color:#34d399">✓ READY</span>' : `<span style="color:var(--text-muted)">${readyCount}/${totalCount} Done</span>`}
+                ${quickSignoffBtn}
+              </div>
+            </td>
+            <td style="width: 185px;">
+              ${d.hasDeadline ? `
+                <div class="deadline-cell">
+                  <input type="date" value="${escapeHtml(item.deadline || '')}" oninput="setDeadline(${currentLevel}, '${d.id}', this.value, this)" onchange="setDeadline(${currentLevel}, '${d.id}', this.value, this)">
+                  <div class="badge-slot">${getCountdownBadge(item.deadline, isFullyReady)}</div>
+                </div>
+              ` : `<span style="font-size:12px; color:var(--text-dim);">No deadline / On-demand</span>`}
+            </td>
+            <td style="width: 280px;">
+              ${linkCellContent}
+            </td>
+          </tr>
+        `;
+      });
+
+      const isScienceLevel = currentLevel <= 3;
+      const focusBadge = isMakeup
+        ? (isScienceLevel
+            ? `<span style="background:rgba(16,185,129,0.16); color:#34d399; border:1px solid rgba(16,185,129,0.4); padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700;">Science Focus</span>`
+            : `<span style="background:rgba(245,158,11,0.16); color:#fbbf24; border:1px solid rgba(245,158,11,0.4); padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700;">Tech Focus</span>`)
+        : '';
+
+      const trackPill = isMakeup
+        ? `<span style="background:rgba(139,92,246,0.2); color:#c4b5fd; border:1px solid rgba(139,92,246,0.45); padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700;">${TERM_LABELS[currentTerm] || 'Fall Term'} · Make-Up (M1–M3)</span>${focusBadge}`
+        : `<span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">${block.label}</span>`;
+
+      container.innerHTML = `
+        <div class="level-banner">
+          <div class="level-banner-title">
+            <span style="color: var(--c-l${currentLevel});">Level ${currentLevel}</span>
+            ${trackPill}
+          </div>
+          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <div class="teacher-input-wrap">
+              <label>Lead Teacher:</label>
+              <input type="text" placeholder="Assign teacher..." value="${escapeHtml(teacher)}" onchange="setLeadTeacher(${currentLevel}, this.value)">
+            </div>
+            <button class="btn-signoff-all" onclick="signoffWholeLevel(${currentLevel})">✓ Sign Off All Ready</button>
+          </div>
+        </div>
+
+        <div class="tracker-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Deliverable</th>
+                <th>${isMakeup ? 'Make-Up Topics (Click to cycle)' : 'Topic Progress (Click to cycle)'}</th>
+                <th>Sign-Off</th>
+                <th>Deadline & Status</th>
+                <th>Resource Links & UK Spellcheck</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // --- FESTIVE CAMPS MULTI-THEME RENDER (1 / 2 / 5 DAYS) ---
+    function renderFestiveLevel(container) {
+      const scopeKey = getScopeKey();
+      const scope = ensureScope(scopeKey);
+      const themes = ensureFestiveThemes(currentLevel);
+      const deliverables = DELIVERABLES_FESTIVE;
+      const teacher = (scope.teachers && scope.teachers[currentLevel]) || '';
+
+      let themesHtml = '';
+      themes.forEach((theme) => {
+        let rowsHtml = '';
+        const themeDays = normalizeThemeDays(theme.days);
+
+        deliverables.forEach(d => {
+          const itemKey = `L${currentLevel}_${theme.id}_${d.id}`;
+          const item = (scope.deliverables && scope.deliverables[itemKey]) || {
+            topics: {}, deadline: '', driveUrl: '', links: {}, updatedAt: null
+          };
+
+          let topicsMarkup = '';
+          let readyCount = 0;
+
+          for (let day = 1; day <= themeDays; day++) {
+            const st = item.topics[day] || 'none';
+            if (st === 'ready') readyCount++;
+            topicsMarkup += `
+              <button class="topic-chip state-${st}" onclick="cycleFestiveTopicState(${currentLevel}, '${theme.id}', '${d.id}', ${day})">
+                <span class="chip-name">D${day}</span>
+                <span class="chip-state">${st}</span>
+              </button>
+            `;
+          }
+
+          const isFullyReady = (readyCount === themeDays);
+          const quickSignoffBtn = !isFullyReady
+            ? `<button class="btn-quick-signoff" onclick="signoffFestiveRow(${currentLevel}, '${theme.id}', '${d.id}', ${themeDays})">✓ All</button>`
+            : '';
+
+          let linkCellContent = '';
+          if (d.multiLink) {
+            const populatedLinks = [];
+            const qaLinks = item.qaLinks || {};
+            for (let day = 1; day <= themeDays; day++) {
+              if (item.links && item.links[day]) {
+                const qa = qaLinks[day];
+                let pillClass = 'btn-link-pill';
+                let qaIcon = '↗';
+                if (!d.skipQa && qa && qa.url === item.links[day]) {
+                  if (qa.status === 'passed') { pillClass += ' pill-qa-ok'; qaIcon = '✓'; }
+                  else if (qa.status === 'typos') { pillClass += ' pill-qa-err'; qaIcon = `⚠${qa.typoCount}`; }
+                }
+                populatedLinks.push(`<a href="${escapeHtml(item.links[day])}" target="_blank" rel="noopener" class="${pillClass}">D${day} ${qaIcon}</a>`);
+              }
+            }
+            const summary = getMultiQaSummary(item, 1, themeDays);
+            let qaSummaryBadge = '';
+            if (!d.skipQa) {
+              if (summary.typos > 0) {
+                qaSummaryBadge = `<button class="qa-badge qa-typos" onclick="openLinksModal(${currentLevel}, '${theme.id}_${d.id}', 1, ${themeDays}, 'festive')">⚠ ${summary.typos} Typos</button>`;
+              } else if (summary.totalLinks > 0 && summary.passed === summary.totalLinks) {
+                qaSummaryBadge = `<span class="qa-badge qa-passed">✓ UK Clean</span>`;
+              }
+            }
+
+            linkCellContent = `
+              <div class="links-cell-container">
+                <div class="links-pills-row">
+                  ${populatedLinks.length > 0 ? populatedLinks.join('') : '<span style="font-size:12px; color:var(--text-dim);">No links yet</span>'}
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <button class="btn-open-linkmodal" onclick="openLinksModal(${currentLevel}, '${theme.id}_${d.id}', 1, ${themeDays}, 'festive')">
+                    ⚙ ${d.skipQa ? 'Links' : 'Links & Scan'} (${summary.totalLinks}/${themeDays})
+                  </button>
+                  ${qaSummaryBadge}
+                </div>
+              </div>
+            `;
+          } else {
+            const scanKey = `${scopeKey}|${itemKey}|single`;
+            const scanMsg = activeScans[scanKey];
+            linkCellContent = `
+              <div class="links-cell-container">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <input type="text" style="width:${d.skipQa ? '195px' : '155px'};" placeholder="Paste Drive link..." value="${escapeHtml(item.driveUrl || '')}"
+                    onchange="setFestiveDriveUrl(${currentLevel}, '${theme.id}', '${d.id}', this.value)"
+                    onpaste="setTimeout(() => setFestiveDriveUrl(${currentLevel}, '${theme.id}', '${d.id}', this.value), 20)">
+                  ${item.driveUrl ? `<a href="${escapeHtml(item.driveUrl)}" target="_blank" rel="noopener" class="btn-link-pill" title="Open in Drive">${d.skipQa ? 'Drive ↗' : '↗'}</a>` : ''}
+                  ${item.driveUrl && !d.skipQa ? `
+                    <button class="btn-scan-qa" ${scanMsg ? 'disabled' : ''} onclick="runSpellcheck('${scopeKey}', '${itemKey}', 'single')">
+                      ${scanMsg ? escapeHtml(scanMsg) : '🔍 Scan'}
+                    </button>` : ''}
+                </div>
+                ${item.driveUrl && !d.skipQa ? `<div>${renderSingleQaBadge(scopeKey, itemKey, item)}</div>` : ''}
+              </div>
+            `;
+          }
+
+          rowsHtml += `
+            <tr>
+              <td style="width: 260px;">
+                <div class="deliverable-title">${d.name}</div>
+                <div class="deliverable-desc">${d.desc}</div>
+                <div class="timestamp-text">${formatExactTime(item.updatedAt)}</div>
+              </td>
+              <td>
+                <div class="chips-group">
+                  ${topicsMarkup}
+                </div>
+              </td>
+              <td style="width: 140px;">
+                <div style="font-weight: 700; font-size: 13.5px; display: flex; align-items: center;">
+                  ${isFullyReady ? '<span style="color:#34d399">✓ READY</span>' : `<span style="color:var(--text-muted)">${readyCount}/${themeDays} Done</span>`}
+                  ${quickSignoffBtn}
+                </div>
+              </td>
+              <td style="width: 185px;">
+                <div class="deadline-cell">
+                  <input type="date" value="${escapeHtml(item.deadline || '')}" oninput="setFestiveDeadline(${currentLevel}, '${theme.id}', '${d.id}', this.value, this)" onchange="setFestiveDeadline(${currentLevel}, '${theme.id}', '${d.id}', this.value, this)">
+                  <div class="badge-slot">${getCountdownBadge(item.deadline, isFullyReady)}</div>
+                </div>
+              </td>
+              <td style="width: 280px;">
+                ${linkCellContent}
+              </td>
+            </tr>
+          `;
+        });
+
+        themesHtml += `
+          <div class="festive-theme-card">
+            <div class="festive-theme-header">
+              <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <input type="text" class="theme-title-input" value="${escapeHtml(theme.name)}" onchange="updateThemeName(${currentLevel}, '${theme.id}', this.value)" placeholder="Enter Theme Name...">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Duration:</span>
+                  <select onchange="updateThemeDays(${currentLevel}, '${theme.id}', this.value)" style="padding:4px 8px; font-size:12px;">
+                    <option value="1" ${themeDays === 1 ? 'selected' : ''}>1 Day</option>
+                    <option value="2" ${themeDays === 2 ? 'selected' : ''}>2 Days</option>
+                    <option value="5" ${themeDays === 5 ? 'selected' : ''}>5 Days</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn-signoff-all" onclick="signoffFestiveWholeTheme(${currentLevel}, '${theme.id}', ${themeDays})">✓ Sign Off Theme Ready</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Deliverable</th>
+                  <th>Camp Days (Click to cycle)</th>
+                  <th>Sign-Off</th>
+                  <th>Deadline & Status</th>
+                  <th>Resource Links & UK Spellcheck</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          </div>
+        `;
+      });
+
+      container.innerHTML = `
+        <div class="level-banner">
+          <div class="level-banner-title">
+            <span style="color: var(--c-l${currentLevel});">Level ${currentLevel}</span>
+            <span style="background:rgba(236,72,153,0.2); color:#f472b6; border:1px solid rgba(236,72,153,0.4); padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700;">Festive Camps Track (1 / 2 / 5 Days)</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div class="teacher-input-wrap">
+              <label>Lead Teacher:</label>
+              <input type="text" placeholder="Assign teacher..." value="${escapeHtml(teacher)}" onchange="setLeadTeacher(${currentLevel}, this.value)">
+            </div>
+          </div>
+        </div>
+
+        ${themesHtml}
+
+        <button class="btn-add-theme" onclick="addNewFestiveTheme(${currentLevel})">
+          <span>+ Add Another Camp Theme to Level ${currentLevel}</span>
+        </button>
+      `;
+    }
+
+    // --- OPS ALL-LEVELS MATRIX ---
+    function renderOpsMatrix(container) {
+      const scope = ensureScope();
+      const deliverables = getActiveDeliverables();
+
+      let headHtml = `<th>Deliverable Spec</th>`;
+      for (let l = 1; l <= 5; l++) {
+        const teacher = (scope.teachers && scope.teachers[l]) || 'Unassigned';
+        const focusTag = currentTrack === 'makeup'
+          ? ` · ${l <= 3 ? 'Science' : 'Tech'}`
+          : '';
+        headHtml += `
+          <th style="color: var(--c-l${l});">
+            Level ${l}${focusTag}
+            <div style="font-size:10px; color:var(--text-muted); text-transform:none;">${escapeHtml(teacher)}</div>
+          </th>
+        `;
+      }
+
+      let rowsHtml = '';
+      deliverables.forEach(d => {
+        let cellsHtml = '';
+        for (let l = 1; l <= 5; l++) {
+          let item = null;
+          let readyCount = 0;
+          let totalCount = 4;
+          let summaryDots = '';
+          let startIdx = 1, endIdx = 4;
+
+          if (currentTrack === 'festive') {
+            const themes = ensureFestiveThemes(l);
+            const firstTheme = themes[0];
+            totalCount = normalizeThemeDays(firstTheme.days);
+            startIdx = 1;
+            endIdx = totalCount;
+            const itemKey = `L${l}_${firstTheme.id}_${d.id}`;
+            item = (scope.deliverables && scope.deliverables[itemKey]) || { topics: {}, deadline: '', driveUrl: '', links: {}, updatedAt: null };
+
+            for (let day = 1; day <= totalCount; day++) {
+              const st = item.topics[day] || 'none';
+              if (st === 'ready') readyCount++;
+              summaryDots += `<span style="font-size:10px; font-weight:800; padding:2px 4px; border-radius:3px; margin-right:3px;" class="topic-chip state-${st}">D${day}</span>`;
+            }
+          } else if (currentTrack === 'makeup') {
+            totalCount = 3;
+            startIdx = 1;
+            endIdx = 3;
+            const itemKey = `L${l}_${d.id}`;
+            item = (scope.deliverables && scope.deliverables[itemKey]) || { topics: {}, deadline: '', driveUrl: '', links: {}, updatedAt: null };
+
+            for (let m = 1; m <= 3; m++) {
+              const st = item.topics[m] || 'none';
+              if (st === 'ready') readyCount++;
+              summaryDots += `<span style="font-size:10px; font-weight:800; padding:2px 4px; border-radius:3px; margin-right:3px;" class="topic-chip state-${st}">M${m}</span>`;
+            }
+          } else {
+            const block = STANDARD_TERMS[currentTerm][currentBlockIdx];
+            startIdx = block.start;
+            endIdx = block.end;
+            totalCount = d.isSingleQuiz ? 1 : 4;
+            const itemKey = `L${l}_${d.id}`;
+            item = (scope.deliverables && scope.deliverables[itemKey]) || { topics: {}, deadline: '', driveUrl: '', links: {}, updatedAt: null };
+
+            if (d.isSingleQuiz) {
+              const st = item.topics['quiz_unified'] || 'none';
+              if (st === 'ready') readyCount = 1;
+              summaryDots = `<span class="badge-countdown ${st === 'ready' ? 'countdown-green' : (st === 'review' ? 'countdown-amber' : '')}">${st.toUpperCase()}</span>`;
+            } else {
+              for (let t = block.start; t <= block.end; t++) {
+                const st = item.topics[t] || 'none';
+                if (st === 'ready') readyCount++;
+                summaryDots += `<span style="font-size:10px; font-weight:800; padding:2px 4px; border-radius:3px; margin-right:3px;" class="topic-chip state-${st}">T${t}</span>`;
+              }
+            }
+          }
+
+          let qaPillHtml = '';
+          if (!d.skipQa) {
+            if (d.multiLink) {
+              const s = getMultiQaSummary(item, startIdx, endIdx);
+              if (s.typos > 0) qaPillHtml = `<span class="qa-badge qa-typos" style="font-size:10px; padding:1px 6px;">⚠ ${s.typos} Typos</span>`;
+              else if (s.totalLinks > 0 && s.passed === s.totalLinks) qaPillHtml = `<span class="qa-badge qa-passed" style="font-size:10px; padding:1px 6px;">✓ UK Clean</span>`;
+            } else if (item.driveUrl && item.qaSingle && item.qaSingle.url === item.driveUrl) {
+              if (item.qaSingle.status === 'typos') qaPillHtml = `<span class="qa-badge qa-typos" style="font-size:10px; padding:1px 6px;">⚠ ${item.qaSingle.typoCount} Typos</span>`;
+              else if (item.qaSingle.status === 'passed') qaPillHtml = `<span class="qa-badge qa-passed" style="font-size:10px; padding:1px 6px;">✓ UK Clean</span>`;
+            }
+          }
+
+          cellsHtml += `
+            <td>
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:4px;">
+                <span style="font-weight:700; font-size:13px;">
+                  ${readyCount === totalCount ? '<span style="color:#34d399">✓ READY</span>' : `${readyCount}/${totalCount} Done`}
+                </span>
+                ${qaPillHtml}
+              </div>
+              <div style="display:flex; flex-wrap:wrap; gap:2px; margin-bottom:4px;">
+                ${summaryDots}
+              </div>
+              <div style="font-size:10px; color:var(--text-dim); margin-top:2px;">${formatExactTime(item.updatedAt)}</div>
+            </td>
+          `;
+        }
+
+        rowsHtml += `
+          <tr>
+            <td>
+              <div class="deliverable-title">${d.name}</div>
+              <div class="deliverable-desc">${d.desc}</div>
+            </td>
+            ${cellsHtml}
+          </tr>
+        `;
+      });
+
+      const matrixSubtitle = currentTrack === 'makeup'
+        ? `${TERM_LABELS[currentTerm] || 'Fall Term'} Make-Up Classes · Readiness & UK Spellcheck`
+        : 'Cross-Level Readiness & UK Spellcheck Overview';
+
+      container.innerHTML = `
+        <div class="level-banner">
+          <div class="level-banner-title">
+            <span style="color: #38bdf8;">Ops All-Levels Matrix</span>
+            <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">${matrixSubtitle}</span>
+          </div>
+        </div>
+
+        <div class="tracker-table-wrap">
+          <table>
+            <thead><tr>${headHtml}</tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // --- 5. INTERACTION HANDLERS ---
+    function setTrack(track) {
+      currentTrack = track;
+      document.getElementById('trackCore').className = 'track-btn' + (track === 'core' ? ' active' : '');
+      document.getElementById('trackPres').className = 'track-btn' + (track === 'presentation' ? ' active' : '');
+      document.getElementById('trackMakeup').className = 'track-btn' + (track === 'makeup' ? ' active makeup' : '');
+      document.getElementById('trackFestive').className = 'track-btn' + (track === 'festive' ? ' active festive' : '');
+
+      if (track === 'festive') currentTerm = 'winter_camp';
+      else currentTerm = 'fall';
+      currentBlockIdx = 0;
+      render();
+    }
+
+    function changeTerm() {
+      currentTerm = document.getElementById('termSelect').value;
+      currentBlockIdx = 0;
+      render();
+    }
+
+    function changeBlock() {
+      currentBlockIdx = parseInt(document.getElementById('topicBlockSelect').value, 10) || 0;
+      render();
+    }
+
+    function setLevel(lvl) {
+      currentLevel = lvl;
+      render();
+    }
+
+    function setLeadTeacher(lvl, name) {
+      const scope = ensureScope();
+      scope.teachers[lvl] = name;
+      persistAndSync();
+    }
+
+    function cycleTopicState(lvl, dId, topicNum) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${dId}`;
+      const item = ensureDeliverableItem(scope, key);
+
+      const current = item.topics[topicNum] || 'none';
+      const next = CYCLE[(CYCLE.indexOf(current) + 1) % CYCLE.length];
+      item.topics[topicNum] = next;
+      item.updatedAt = new Date().toISOString();
+
+      render();
+      persistAndSync();
+    }
+
+    function cycleQuizState(lvl, dId) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${dId}`;
+      const item = ensureDeliverableItem(scope, key);
+
+      const current = item.topics['quiz_unified'] || 'none';
+      const next = CYCLE[(CYCLE.indexOf(current) + 1) % CYCLE.length];
+      item.topics['quiz_unified'] = next;
+      item.updatedAt = new Date().toISOString();
+
+      render();
+      persistAndSync();
+    }
+
+    function signoffRow(lvl, dId) {
+      const scope = ensureScope();
+      const isMakeup = (currentTrack === 'makeup');
+      const block = isMakeup ? { start: 1, end: 3 } : STANDARD_TERMS[currentTerm][currentBlockIdx];
+      const key = `L${lvl}_${dId}`;
+      const item = ensureDeliverableItem(scope, key);
+      const spec = getActiveDeliverables().find(x => x.id === dId);
+
+      const typos = getRowUnresolvedTypos(item, spec, block.start, block.end);
+      if (typos > 0 && !confirm(`Warning: ${typos} British English spelling issue(s) remain in "${spec.name}". Mark READY anyway?`)) {
+        return;
+      }
+
+      if (dId === 'quiz') {
+        item.topics['quiz_unified'] = 'ready';
+      } else {
+        for (let t = block.start; t <= block.end; t++) {
+          item.topics[t] = 'ready';
+        }
+      }
+      item.updatedAt = new Date().toISOString();
+      render();
+      persistAndSync();
+    }
+
+    function signoffWholeLevel(lvl) {
+      const scope = ensureScope();
+      const deliverables = getActiveDeliverables();
+      const isMakeup = (currentTrack === 'makeup');
+      const block = isMakeup ? { start: 1, end: 3 } : STANDARD_TERMS[currentTerm][currentBlockIdx];
+
+      let totalTypos = 0;
+      deliverables.forEach(d => {
+        if (d.id === 'extra_worksheet' || d.skipQa) return;
+        const item = scope.deliverables[`L${lvl}_${d.id}`];
+        totalTypos += getRowUnresolvedTypos(item, d, block.start, block.end);
+      });
+      if (totalTypos > 0 && !confirm(`Warning: ${totalTypos} unresolved spelling issue(s) remain across Level ${lvl}. Sign off all READY anyway?`)) {
+        return;
+      }
+
+      deliverables.forEach(d => {
+        if (d.id === 'extra_worksheet') return;
+        const key = `L${lvl}_${d.id}`;
+        const item = ensureDeliverableItem(scope, key);
+        if (d.isSingleQuiz) {
+          item.topics['quiz_unified'] = 'ready';
+        } else {
+          for (let t = block.start; t <= block.end; t++) {
+            item.topics[t] = 'ready';
+          }
+        }
+        item.updatedAt = new Date().toISOString();
+      });
+
+      render();
+      persistAndSync();
+    }
+
+    function setDeadline(lvl, dId, val, elem) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${dId}`;
+      const item = ensureDeliverableItem(scope, key);
+      item.deadline = val;
+      item.updatedAt = new Date().toISOString();
+
+      let isReady = false;
+      const isMakeup = (currentTrack === 'makeup');
+      const block = isMakeup ? { start: 1, end: 3 } : STANDARD_TERMS[currentTerm][currentBlockIdx];
+      const totalCount = block.end - block.start + 1;
+
+      if (dId === 'quiz') {
+        isReady = (item.topics['quiz_unified'] === 'ready');
+      } else {
+        let count = 0;
+        for (let t = block.start; t <= block.end; t++) {
+          if (item.topics[t] === 'ready') count++;
+        }
+        isReady = (count === totalCount);
+      }
+
+      if (elem && elem.nextElementSibling) {
+        elem.nextElementSibling.innerHTML = getCountdownBadge(val, isReady);
+      }
+      persistAndSync();
+    }
+
+    function setDriveUrl(lvl, dId, val) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${dId}`;
+      const item = ensureDeliverableItem(scope, key);
+      const cleanVal = String(val || '').trim();
+      if (item.driveUrl === cleanVal) return;
+
+      item.driveUrl = cleanVal;
+      delete item.qaSingle;
+      item.updatedAt = new Date().toISOString();
+      render();
+      persistAndSync();
+    }
+
+    function updateThemeName(lvl, themeId, val) {
+      const themes = ensureFestiveThemes(lvl);
+      const th = themes.find(t => t.id === themeId);
+      if (th) th.name = val;
+      persistAndSync();
+    }
+
+    function updateThemeDays(lvl, themeId, daysVal) {
+      const themes = ensureFestiveThemes(lvl);
+      const th = themes.find(t => t.id === themeId);
+      if (th) th.days = normalizeThemeDays(daysVal);
+      render();
+      persistAndSync();
+    }
+
+    function addNewFestiveTheme(lvl) {
+      const themes = ensureFestiveThemes(lvl);
+      const newIndex = themes.length + 1;
+      const defaultDays = (currentTerm === 'one_day_festive') ? 1 : 5;
+      themes.push({
+        id: `theme_${Date.now()}`,
+        name: defaultDays === 1 ? `Theme ${newIndex}: 1-Day Camp` : `Theme ${newIndex}: New Camp Theme`,
+        days: defaultDays
+      });
+      render();
+      persistAndSync();
+    }
+
+    function cycleFestiveTopicState(lvl, themeId, dId, day) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${themeId}_${dId}`;
+      const item = ensureDeliverableItem(scope, key);
+
+      const current = item.topics[day] || 'none';
+      const next = CYCLE[(CYCLE.indexOf(current) + 1) % CYCLE.length];
+      item.topics[day] = next;
+      item.updatedAt = new Date().toISOString();
+
+      render();
+      persistAndSync();
+    }
+
+    function signoffFestiveRow(lvl, themeId, dId, daysCount) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${themeId}_${dId}`;
+      const item = ensureDeliverableItem(scope, key);
+      const spec = DELIVERABLES_FESTIVE.find(x => x.id === dId);
+
+      const typos = getRowUnresolvedTypos(item, spec, 1, daysCount);
+      if (typos > 0 && !confirm(`Warning: ${typos} British English spelling issue(s) remain in "${spec.name}". Mark READY anyway?`)) {
+        return;
+      }
+
+      for (let day = 1; day <= daysCount; day++) {
+        item.topics[day] = 'ready';
+      }
+      item.updatedAt = new Date().toISOString();
+      render();
+      persistAndSync();
+    }
+
+    function signoffFestiveWholeTheme(lvl, themeId, daysCount) {
+      const scope = ensureScope();
+      let totalTypos = 0;
+      DELIVERABLES_FESTIVE.forEach(d => {
+        if (d.skipQa) return;
+        const item = scope.deliverables[`L${lvl}_${themeId}_${d.id}`];
+        totalTypos += getRowUnresolvedTypos(item, d, 1, daysCount);
+      });
+      if (totalTypos > 0 && !confirm(`Warning: ${totalTypos} unresolved spelling issue(s) remain in this camp theme. Sign off READY anyway?`)) {
+        return;
+      }
+
+      DELIVERABLES_FESTIVE.forEach(d => {
+        const key = `L${lvl}_${themeId}_${d.id}`;
+        const item = ensureDeliverableItem(scope, key);
+        for (let day = 1; day <= daysCount; day++) {
+          item.topics[day] = 'ready';
+        }
+        item.updatedAt = new Date().toISOString();
+      });
+      render();
+      persistAndSync();
+    }
+
+    function setFestiveDeadline(lvl, themeId, dId, val, elem) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${themeId}_${dId}`;
+      const item = ensureDeliverableItem(scope, key);
+      item.deadline = val;
+      item.updatedAt = new Date().toISOString();
+
+      const themes = ensureFestiveThemes(lvl);
+      const th = themes.find(t => t.id === themeId);
+      const themeDays = normalizeThemeDays(th ? th.days : 5);
+      let count = 0;
+      for (let day = 1; day <= themeDays; day++) {
+        if (item.topics[day] === 'ready') count++;
+      }
+      const isReady = (count === themeDays);
+
+      if (elem && elem.nextElementSibling) {
+        elem.nextElementSibling.innerHTML = getCountdownBadge(val, isReady);
+      }
+      persistAndSync();
+    }
+
+    function setFestiveDriveUrl(lvl, themeId, dId, val) {
+      const scope = ensureScope();
+      const key = `L${lvl}_${themeId}_${dId}`;
+      const item = ensureDeliverableItem(scope, key);
+      const cleanVal = String(val || '').trim();
+      if (item.driveUrl === cleanVal) return;
+
+      item.driveUrl = cleanVal;
+      delete item.qaSingle;
+      item.updatedAt = new Date().toISOString();
+      render();
+      persistAndSync();
+    }
+
+    // --- 6. MULTI-LINK MODAL LOGIC (WITH INTEGRATED PER-LINK UK SPELLCHECK) ---
+    let activeModalTarget = null;
+
+    function openLinksModal(lvl, itemKeySuffix, start, end, mode) {
+      const scopeKey = getScopeKey();
+      const itemKey = `L${lvl}_${itemKeySuffix}`;
+      const activeSpecs = getActiveDeliverables();
+      const spec = activeSpecs.find(d => itemKeySuffix === d.id || itemKeySuffix.endsWith('_' + d.id));
+
+      activeModalTarget = {
+        scopeKey, lvl, itemKey, itemKeySuffix, start, end, mode,
+        title: spec ? spec.name : 'Deliverable',
+        skipQa: !!(spec && spec.skipQa)
+      };
+
+      document.getElementById('linksModalTitle').innerText = activeModalTarget.skipQa
+        ? `${activeModalTarget.title} — Links`
+        : `${activeModalTarget.title} — Links & UK Spellcheck`;
+      document.getElementById('linksModalSubtitle').innerText = activeModalTarget.skipQa
+        ? `Paste individual URLs for each camp day.`
+        : `Paste Google Drive URLs (Slides, Docs, Sheets, PDF) and scan each file for strict British English spelling.`;
+      document.getElementById('scanAllModalBtn').style.display = activeModalTarget.skipQa ? 'none' : 'inline-flex';
+
+      renderLinksModalRows(false);
+      document.getElementById('linksModal').style.display = 'grid';
+    }
+
+    function renderLinksModalRows(preserveInputValues) {
+      if (!activeModalTarget) return;
+      const { scopeKey, itemKey, start, end, mode, skipQa } = activeModalTarget;
+      const scope = ensureScope(scopeKey);
+      const item = ensureDeliverableItem(scope, itemKey);
+
+      const draftValues = {};
+      if (preserveInputValues) {
+        for (let i = start; i <= end; i++) {
+          const el = document.getElementById(`modalLink_${i}`);
+          if (el) draftValues[i] = el.value;
+        }
+      }
+
+      let inputsHtml = '';
+      for (let i = start; i <= end; i++) {
+        const label = mode === 'festive' ? `Day ${i} Link` : mode === 'makeup' ? `Make-Up M${i} Link` : `Topic ${i} Link`;
+        const val = preserveInputValues && draftValues[i] !== undefined ? draftValues[i] : ((item.links && item.links[i]) || '');
+        const qa = item.qaLinks && item.qaLinks[i];
+        const scanKey = `${scopeKey}|${itemKey}|${i}`;
+        const scanMsg = activeScans[scanKey];
+
+        let badgeHtml = '';
+        if (!skipQa && val.trim()) {
+          if (qa && qa.url === val.trim()) {
+            if (qa.status === 'passed') {
+              badgeHtml = `<button class="qa-badge qa-passed" onclick="openTypoModal('${scopeKey}', '${itemKey}', '${i}')">✓ UK Clean</button>`;
+            } else if (qa.status === 'typos') {
+              badgeHtml = `<button class="qa-badge qa-typos" onclick="openTypoModal('${scopeKey}', '${itemKey}', '${i}')">⚠ ${qa.typoCount} Typo${qa.typoCount === 1 ? '' : 's'}</button>`;
+            } else {
+              badgeHtml = `<button class="qa-badge qa-error" onclick="openTypoModal('${scopeKey}', '${itemKey}', '${i}')">⚠ Scan Err</button>`;
+            }
+          } else {
+            badgeHtml = `<span class="qa-badge qa-unscanned">Unscanned</span>`;
+          }
+        }
+
+        inputsHtml += `
+          <div class="modal-link-row">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label style="font-size:12px; font-weight:700; color:var(--text-muted);">${label}</label>
+              <div>${badgeHtml}</div>
+            </div>
+            <div class="modal-link-controls">
+              <input type="text" id="modalLink_${i}" placeholder="https://drive.google.com/..." value="${escapeHtml(val)}">
+              ${!skipQa ? `
+                <button class="btn-scan-qa" ${scanMsg ? 'disabled' : ''} onclick="scanModalLink(${i})">
+                  ${scanMsg ? escapeHtml(scanMsg) : '🔍 Scan'}
+                </button>` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      document.getElementById('linksModalInputs').innerHTML = inputsHtml;
+    }
+
+    function syncModalInputsToState() {
+      if (!activeModalTarget) return;
+      const { scopeKey, itemKey, start, end } = activeModalTarget;
+      const scope = ensureScope(scopeKey);
+      const item = ensureDeliverableItem(scope, itemKey);
+
+      for (let i = start; i <= end; i++) {
+        const inputElem = document.getElementById(`modalLink_${i}`);
+        if (!inputElem) continue;
+        const val = inputElem.value.trim();
+        const prev = item.links[i] || '';
+        if (val) {
+          item.links[i] = val;
+          if (val !== prev && item.qaLinks && item.qaLinks[i]) {
+            delete item.qaLinks[i];
+          }
+        } else {
+          delete item.links[i];
+          if (item.qaLinks && item.qaLinks[i]) delete item.qaLinks[i];
+        }
+      }
+      item.updatedAt = new Date().toISOString();
+    }
+
+    async function scanModalLink(slot) {
+      if (!activeModalTarget) return;
+      syncModalInputsToState();
+      const { scopeKey, itemKey } = activeModalTarget;
+      await runSpellcheck(scopeKey, itemKey, String(slot), true);
+    }
+
+    async function scanAllModalLinks() {
+      if (!activeModalTarget) return;
+      syncModalInputsToState();
+      const { scopeKey, itemKey, start, end } = activeModalTarget;
+      const scope = ensureScope(scopeKey);
+      const item = ensureDeliverableItem(scope, itemKey);
+
+      const slots = [];
+      for (let i = start; i <= end; i++) {
+        if (item.links[i]) slots.push(i);
+      }
+      if (slots.length === 0) {
+        alert('Paste at least one Google Drive link first.');
+        return;
+      }
+
+      const btn = document.getElementById('scanAllModalBtn');
+      btn.disabled = true;
+      for (let idx = 0; idx < slots.length; idx++) {
+        btn.textContent = `Scanning ${idx + 1}/${slots.length}...`;
+        await runSpellcheck(scopeKey, itemKey, String(slots[idx]), false);
+      }
+      btn.disabled = false;
+      btn.textContent = '🔍 Scan All Links';
+    }
+
+    function closeLinksModal() {
+      document.getElementById('linksModal').style.display = 'none';
+      activeModalTarget = null;
+    }
+
+    function saveLinksModal() {
+      if (!activeModalTarget) return;
+      syncModalInputsToState();
+      closeLinksModal();
+      render();
+      persistAndSync();
+    }
+
+    // --- 7. EXACT-PAGE SPELLCHECK ENGINE (v2.4-UK: PDF.js + GAS) ---
+    function base64ToUint8Array(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    async function extractExactPdfPages(pdfBase64, onProgress) {
+      const bytes = base64ToUint8Array(pdfBase64);
+      const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+      const totalPages = pdf.numPages;
+      const sections = [];
+      let totalChars = 0;
+
+      for (let p = 1; p <= totalPages; p++) {
+        if (onProgress) onProgress(p, totalPages);
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+
+        let pageText = '';
+        let prev = null;
+
+        for (const item of content.items) {
+          if (typeof item.str !== 'string' || item.str.length === 0) continue;
+
+          const tr = item.transform || [12, 0, 0, 12, 0, 0];
+          const fontSize = Math.max(Math.abs(tr[0]), Math.abs(tr[3]), 8);
+          const x = tr[4];
+          const y = tr[5];
+          const w = item.width || 0;
+
+          if (prev) {
+            const yDiff = Math.abs(y - prev.y);
+            const xGap = x - (prev.x + prev.w);
+
+            if (prev.hasEOL || yDiff > fontSize * 0.6) {
+              if (!pageText.endsWith('\n')) pageText += '\n';
+            } else if (xGap > fontSize * 0.16 || xGap < -fontSize * 0.5) {
+              if (!pageText.endsWith(' ') && !pageText.endsWith('\n') && !item.str.startsWith(' ')) {
+                pageText += ' ';
+              }
+            }
+          }
+
+          pageText += item.str;
+          prev = { x, y, w, hasEOL: !!item.hasEOL };
+        }
+
+        const cleaned = pageText
+          .split('\n')
+          .map(line => line.replace(/\s+/g, ' ').trim())
+          .filter(Boolean)
+          .join('\n');
+
+        if (cleaned) {
+          totalChars += cleaned.length;
+          sections.push({ location: `Page ${p} of ${totalPages}`, text: cleaned });
+        }
+      }
+
+      return { sections, totalChars, totalPages };
+    }
+
+    function refreshScanViews() {
+      render();
+      if (activeModalTarget && document.getElementById('linksModal').style.display === 'grid') {
+        renderLinksModalRows(true);
+      }
+    }
+
+    async function runSpellcheck(scopeKey, itemKey, slotKey, autoOpenModal = true) {
+      const scope = ensureScope(scopeKey);
+      const item = ensureDeliverableItem(scope, itemKey);
+      const url = (slotKey === 'single') ? (item.driveUrl || '').trim() : ((item.links && item.links[slotKey]) || '').trim();
+
+      if (!url) {
+        alert('Please paste a Google Drive link first.');
+        return;
+      }
+
+      const scanKey = `${scopeKey}|${itemKey}|${slotKey}`;
+      const setProgress = (msg) => {
+        activeScans[scanKey] = msg;
+        refreshScanViews();
+      };
+
+      setProgress('Fetching...');
+
+      let qaRecord = null;
+      try {
+        const res1 = await fetch(SPELLCHECK_SCRIPT_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          body: JSON.stringify({ action: 'scan', url })
+        });
+        let data = await res1.json();
+
+        if (data.status === 'needs_pdf_parse') {
+          setProgress('Reading PDF...');
+          const parsed = await extractExactPdfPages(data.pdfBase64, (p, total) => {
+            setProgress(`Page ${p}/${total}...`);
+          });
+
+          if (parsed.totalChars < 20) {
+            setProgress('Running OCR...');
+            const resOcr = await fetch(SPELLCHECK_SCRIPT_URL, {
+              method: 'POST',
+              redirect: 'follow',
+              body: JSON.stringify({ action: 'scan', url, forceOcr: true })
+            });
+            data = await resOcr.json();
+          } else {
+            setProgress('Checking UK...');
+            const res2 = await fetch(SPELLCHECK_SCRIPT_URL, {
+              method: 'POST',
+              redirect: 'follow',
+              body: JSON.stringify({
+                action: 'check_sections',
+                fileId: data.fileId,
+                fileName: data.fileName,
+                lastModified: data.lastModified,
+                sections: parsed.sections
+              })
+            });
+            data = await res2.json();
+          }
+        }
+
+        if (data.status === 'success') {
+          const allTypos = Array.isArray(data.typos) ? data.typos : [];
+          qaRecord = {
+            url,
+            status: allTypos.length === 0 ? 'passed' : 'typos',
+            fileName: data.fileName || 'Google Drive File',
+            typoCount: allTypos.length,
+            typos: allTypos.slice(0, 100),
+            lastScanned: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            fromCache: !!data.fromCache
+          };
+        } else {
+          qaRecord = {
+            url,
+            status: 'error',
+            fileName: 'Drive Access',
+            typoCount: 0,
+            typos: [{ location: 'Drive Error', word: 'Scan Blocked', suggestions: [data.message || 'Unsupported file or no access'], context: url }],
+            lastScanned: new Date().toLocaleTimeString(),
+            fromCache: false
+          };
+        }
+      } catch (err) {
+        qaRecord = {
+          url,
+          status: 'error',
+          fileName: 'Connection Error',
+          typoCount: 0,
+          typos: [{ location: 'Network', word: 'Request Failed', suggestions: ['Verify Apps Script v2.4-UK deployment is accessible'], context: err.message }],
+          lastScanned: new Date().toLocaleTimeString(),
+          fromCache: false
+        };
+      }
+
+      delete activeScans[scanKey];
+
+      if (slotKey === 'single') {
+        item.qaSingle = qaRecord;
+      } else {
+        if (!item.qaLinks) item.qaLinks = {};
+        item.qaLinks[slotKey] = qaRecord;
+      }
+      item.updatedAt = new Date().toISOString();
+
+      refreshScanViews();
+      persistAndSync();
+
+      if (autoOpenModal) {
+        openTypoModal(scopeKey, itemKey, slotKey);
+      }
+    }
+
+    function openTypoModal(scopeKey, itemKey, slotKey) {
+      const scope = ensureScope(scopeKey);
+      const item = ensureDeliverableItem(scope, itemKey);
+      const qa = (slotKey === 'single') ? item.qaSingle : (item.qaLinks && item.qaLinks[slotKey]);
+      if (!qa) return;
+
+      activeTypoTarget = { scopeKey, itemKey, slotKey };
+
+      const title = document.getElementById('typoModalTitle');
+      const sub = document.getElementById('typoModalSub');
+      const body = document.getElementById('typoModalBody');
+
+      sub.textContent = `${qa.fileName || 'Document'} · Strict UK (en-GB) · Checked ${qa.lastScanned || 'just now'}${qa.fromCache ? ' (Cached ⚡)' : ''}`;
+
+      if (qa.status === 'passed') {
+        title.textContent = '✅ British English QA Passed — 0 Errors';
+        body.innerHTML = `
+          <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); border-radius:10px; padding:18px; text-align:center;">
+            <div style="font-size:16px; font-weight:800; color:#34d399; margin-bottom:4px;">Clean & Ready for Class</div>
+            <div style="font-size:13px; color:var(--text-muted);">Zero spelling mistakes or Americanisms detected under strict British English (en-GB). Academy tech terms were automatically whitelisted.</div>
+          </div>`;
+      } else {
+        title.textContent = qa.status === 'error'
+          ? '⚠️ Scan Error'
+          : `⚠️ ${qa.typoCount} British English Issue${qa.typoCount === 1 ? '' : 's'} Found`;
+
+        const listHtml = (qa.typos || []).map(t => `
+          <div class="typo-item-card">
+            <span class="typo-loc-badge">${escapeHtml(t.location)}</span>
+            <div class="typo-diff-row">
+              <span class="typo-word-bad">${escapeHtml(t.word)}</span>
+              <span style="color:var(--text-dim);">➔</span>
+              <span class="typo-word-good">${escapeHtml((t.suggestions || []).join(', '))}</span>
+            </div>
+            ${t.context ? `<div class="typo-context">"${escapeHtml(t.context)}"</div>` : ''}
+          </div>
+        `).join('');
+
+        const truncNote = (qa.typoCount > (qa.typos || []).length)
+          ? `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:6px;">Showing first ${qa.typos.length} of ${qa.typoCount} issues.</div>`
+          : '';
+
+        body.innerHTML = listHtml + truncNote;
+      }
+
+      document.getElementById('typoModal').style.display = 'grid';
+    }
+
+    async function rescanActiveTypoTarget() {
+      if (!activeTypoTarget) return;
+      const { scopeKey, itemKey, slotKey } = activeTypoTarget;
+      const btn = document.getElementById('typoRescanBtn');
+      btn.disabled = true;
+      btn.textContent = 'Scanning...';
+      await runSpellcheck(scopeKey, itemKey, slotKey, true);
+      btn.disabled = false;
+      btn.textContent = '🔄 Re-Scan File';
+    }
+
+    function closeTypoModal() {
+      document.getElementById('typoModal').style.display = 'none';
+      activeTypoTarget = null;
+    }
+
+    // --- 8. RESET MODAL ---
+    function openResetModal() { document.getElementById('resetModal').style.display = 'grid'; }
+    function closeResetModal() { document.getElementById('resetModal').style.display = 'none'; }
+    function confirmReset() {
+      const key = getScopeKey();
+      delete globalState[key];
+      closeResetModal();
+      render();
+      persistAndSync();
+    }
+
+    // --- 9. ECHO-PROOF PERSISTENCE & REAL-TIME SYNC ---
+    let saveTimeout = null;
+    function persistAndSync() {
+      try {
+        localStorage.setItem('curriculum_ops_state', JSON.stringify(globalState));
+      } catch (e) {}
+
+      if (!dbClient) return;
+
+      const pill = document.getElementById('cloudStatus');
+      pill.classList.add('syncing');
+      pill.innerHTML = '<span class="pulse-dot"></span> Syncing to Supabase...';
+
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(async () => {
+        try {
+          const payload = {
+            ...globalState,
+            _lastSender: CLIENT_ID,
+            _sentAt: Date.now()
+          };
+
+          const { error } = await dbClient
+            .from('curriculum_tracker')
+            .upsert({ id: 'global_v1', data: payload, updated_at: new Date().toISOString() });
+
+          if (!error) {
+            pill.classList.remove('syncing');
+            pill.innerHTML = '<span class="pulse-dot"></span> Live Sync Active';
+          }
+        } catch (err) {
+          console.error('Supabase write error:', err);
+        }
+      }, 250);
+    }
+
+    async function initSupabaseLive() {
+      const pill = document.getElementById('cloudStatus');
+      if (!dbClient) {
+        pill.innerHTML = '<span class="pulse-dot" style="background:#94a3b8; box-shadow:none;"></span> Local Offline Mode';
+        return;
+      }
+
+      try {
+        const { data } = await dbClient
+          .from('curriculum_tracker')
+          .select('data')
+          .eq('id', 'global_v1')
+          .maybeSingle();
+
+        if (data && data.data && Object.keys(data.data).length > 0) {
+          globalState = data.data;
+          render();
+        }
+        pill.innerHTML = '<span class="pulse-dot"></span> Live Sync Active';
+      } catch (e) {
+        console.warn('Supabase fetch failed:', e);
+        pill.innerHTML = '<span class="pulse-dot" style="background:#94a3b8; box-shadow:none;"></span> Local Offline Mode';
+      }
+
+      try {
+        dbClient
+          .channel('public:curriculum_tracker')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'curriculum_tracker' }, (payload) => {
+            if (payload.new && payload.new.data) {
+              const remoteData = payload.new.data;
+              if (remoteData._lastSender === CLIENT_ID) return;
+
+              const activeTag = document.activeElement ? document.activeElement.tagName : '';
+              if (activeTag === 'INPUT') return;
+
+              globalState = remoteData;
+              render();
+            }
+          })
+          .subscribe();
+      } catch (e) {
+        console.warn('Realtime channel error:', e);
+      }
+    }
+
+    // --- 10. AUTO-RELOAD WHEN NEW GITHUB VERSION IS DEPLOYED ---
+    let initialPageVersion = null;
+    setInterval(async () => {
+      try {
+        // Never interrupt a coworker while they are typing a link or teacher name
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+        const res = await fetch(window.location.pathname + '?_v=' + Date.now(), {
+          method: 'HEAD',
+          cache: 'no-store'
+        });
+        const currentVersion = res.headers.get('etag') || res.headers.get('last-modified');
+        if (!currentVersion) return;
+
+        if (!initialPageVersion) {
+          initialPageVersion = currentVersion;
+        } else if (initialPageVersion !== currentVersion) {
+          window.location.reload();
+        }
+      } catch (e) {
+        // Ignore temporary network drops
+      }
+    }, 60000); // Checks every 60 seconds
+
+    render();
+    initSupabaseLive();
+  </script>
+</body>
+</html>
+
