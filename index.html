@@ -2364,6 +2364,31 @@
       }
     }
 
+    // --- 10. AUTO-RELOAD WHEN NEW GITHUB VERSION IS DEPLOYED ---
+    let initialPageVersion = null;
+    setInterval(async () => {
+      try {
+        // Never interrupt a coworker while they are typing a link or teacher name
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+        const res = await fetch(window.location.pathname + '?_v=' + Date.now(), {
+          method: 'HEAD',
+          cache: 'no-store'
+        });
+        const currentVersion = res.headers.get('etag') || res.headers.get('last-modified');
+        if (!currentVersion) return;
+
+        if (!initialPageVersion) {
+          initialPageVersion = currentVersion;
+        } else if (initialPageVersion !== currentVersion) {
+          window.location.reload();
+        }
+      } catch (e) {
+        // Ignore temporary network drops
+      }
+    }, 60000); // Checks every 60 seconds
+
     render();
     initSupabaseLive();
   </script>
